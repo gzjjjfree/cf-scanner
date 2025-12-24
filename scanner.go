@@ -97,7 +97,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		cleanDomain = cleanDomain[:idx]
 	}
 
-	// 1. 创建一个自定义的传输层
+	// 2. 创建一个自定义的传输层
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			// 这一行非常重要：跳过证书过期、域名不匹配等所有校验
@@ -118,13 +118,13 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		Timeout:   timeout + 5*time.Second, // 测速超时稍长一点
 	}
 
-	// 2. 构造下载请求
+	// 3. 构造下载请求
 	// 建议在服务器上放一个 10MB 的测试文件，如果没有，可以暂时请求主页
 	url := fmt.Sprintf("https://%s", domain)
 	req, _ := http.NewRequest("GET", url, nil)
 	// 必须手动指定 Host，这要和你的域名完全一致
 	req.Host = cleanDomain
-	// 2. 补齐模拟浏览器的头部
+	// 补齐模拟浏览器的头部
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	// 使用 Context 实现“采样时间一到立即切断”
@@ -141,10 +141,10 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 
 	defer resp.Body.Close()
 
-	// 1. 设置一个标记，用于判断是否已经成功接收到首字节
+	// 5. 设置一个标记，用于判断是否已经成功接收到首字节
 	firstByteReceived := make(chan struct{})
 
-	// 2. 启动定时器监控首字节
+	// 6. 启动定时器监控首字节
 	go func() {
 		select {
 		case <-firstByteReceived:
@@ -157,7 +157,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		}
 	}()
 
-	// 3. 读取内容并计算字节数
+	// 7. 读取内容并计算字节数
 	bar := progressbar.NewOptions(-1,
 		progressbar.OptionSetDescription(" \t"),
 		progressbar.OptionSetWriter(os.Stdout), // 改用 Stdout 试试
@@ -168,7 +168,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		progressbar.OptionClearOnFinish(), // 完成后清理，保持界面整洁
 	)
 
-	// 4. 核心：在规定时间内读取数据
+	// 8. 核心：在规定时间内读取数据
 	// 我们手动处理读取过程，计算读取了多少字节
 	var downloadedBytes int64
 	buffer := make([]byte, 64*1024) // 32KB 缓冲区
@@ -201,7 +201,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		}
 	}
 
-	// 测速完成后，清理掉那个斜杠，保持界面整洁
+	// 9. 测速完成后，清理掉那个斜杠，保持界面整洁
 	bar.Describe("Done")
 	bar.Finish()
 
@@ -212,7 +212,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		return 0, fmt.Errorf("测速数据不足")
 	}
 
-	// 公式：字节 * 8 / 1024 / 1024 / 秒
+	// 10. 公式：字节 * 8 / 1024 / 1024 / 秒
 	mbps := (float64(downloadedBytes) * 8) / (1024 * 1024) / actualDuration
 	return mbps, nil
 }

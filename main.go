@@ -25,11 +25,12 @@ func main() {
 	outFile := flag.String("o", "result", "输出文件路径加前缀 (不带后缀)")
 	workerCount := flag.Int("n", 100, "并发协程数")
 	latency := flag.Int64("l", 200, "最低延时")
+	minSpeed := flag.Float64("s", 10, "最低延时")
 	outCount := flag.Int("on", 100, "最终结果数")
-	testCount := flag.Int("tn", 5000, "单个 IP 段期望测试的 IP 数量")
+	testCount := flag.Int("tn", 500, "单个 IP 段期望测试的 IP 数量")
 	help := flag.Bool("h", false, "显示帮助信息")
 
-	// 自定义帮助信息显示方式
+	// 2. 自定义帮助信息显示方式
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Cloudflare 优选 IP 扫描工具\n\n")
 		fmt.Fprintf(os.Stderr, "用法:\n  ./cf-scanner [options]\n\n")
@@ -48,14 +49,14 @@ func main() {
 		return
 	}
 
-	// 2. 读取并解析 IP 段文件
+	// 3. 读取并解析 IP 段文件
 	cidrList, isJSONInput, err := readLines(*ipFile)
 	if err != nil {
 		fmt.Printf("无法读取 IP 文件: %v\n", err)
 		return
 	}
 
-	// 3. 每段分别取样
+	// 4. 每段分别取样
 	ipGroups := make([][]string, 1)
 	for _, cidr := range cidrList {
 		ips, _ := ParseCIDR(cidr)
@@ -71,7 +72,7 @@ func main() {
 		}
 	}
 
-	// 4. 预计算总数 (非常重要！)
+	// 5. 预计算总数 (非常重要！)
 	actualTaskCount := 0
 	for i := 0; i < len(ipGroups); i++ {
 		for o := 0; o < len(ipGroups[i]); o++ {
@@ -81,13 +82,13 @@ func main() {
 
 	fmt.Printf("解析完成，总计 %d 个 IP，开始随机抽样扫描...\n", actualTaskCount)
 
-	// 定义旋转字符
+	// 6. 定义旋转字符
 	var spinnerChars = []string{"\\", "|", "/", "-"}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go startSpinner(ctx, spinnerChars) // 启动旋转图标
 
-	// 5. 初始化进度条
+	// 7. 初始化进度条
 	bar := progressbar.NewOptions(actualTaskCount,
 		progressbar.OptionSetDescription("    正在扫描 IP"),
 		progressbar.OptionEnableColorCodes(true),
@@ -102,12 +103,12 @@ func main() {
 		}),
 	)
 
-	// 6. 建立任务通道
+	// 8. 建立任务通道
 	jobs := make(chan string, 200)
 	results := make(chan FinalResult, 200)
 	var wg sync.WaitGroup
 
-	// 7. 启动工人 (Goroutines)
+	// 9. 启动工人 (Goroutines)
 	for i := 0; i < *workerCount; i++ {
 		wg.Add(1)
 		go func() {
@@ -132,7 +133,7 @@ func main() {
 
 	close(jobs)
 
-	// 7. 等待工人干完活并收集结果
+	// 10. 等待工人干完活并收集结果
 	go func() {
 		wg.Wait()
 		fmt.Println("\n✅ 扫描完成！")
@@ -148,28 +149,32 @@ func main() {
 		finalResults = append(finalResults, r)
 	}
 
-	// 8. 按延迟排序
+	// 11. 按延迟排序
 	sort.Slice(finalResults, func(i, j int) bool {
 		return finalResults[i].RawLatency < finalResults[j].RawLatency
 	})
 
-	// 9. 输出前 outCount 名
-	fmt.Printf("\n--- 优选结果 Top %v ---\n", *outCount)
-	for i := 0; i < len(finalResults) && i < *outCount; i++ {
+	// 12. 输出前 outCount 名
+	fmt.Printf("\n--- 优选结果 Top %v 最后结果 %v---\n", *outCount*2, len(finalResults))
+	for i := 0; i < len(finalResults) && i < *outCount*2; i++ {
 		fmt.Printf("排名 %d: [%s], 延迟: %v\n", i+1, finalResults[i].IP, finalResults[i].Latency)
 	}
 
-	// 10. 取前 outCount 名进行深度测速
-	fmt.Printf("\n--- 开始对 Top %v 进行下载测速 ---\n", len(finalResults))
+	// 13. 取前 outCount 名进行深度测速
+	fmt.Printf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", *outCount*2, *outCount)
 	var finalSorted []FinalResult
-
-	for i := 0; i < len(finalResults); i++ {
+	outResults := 0
+	for i := 0; i < len(finalResults) && i < *outCount*2; i++ {
 		bestIP := finalResults[i].IP
 
 		speed, err := TestSpeed(bestIP, *domain, 5*time.Second)
 
 		if err != nil {
 			fmt.Printf("测速异常: %v\n", err)
+			continue
+		} else if speed < *minSpeed {
+			fmt.Printf("速率过低: [%s] 速度: %.2f Mbps\n", bestIP, speed)
+			continue
 		} else {
 			fmt.Printf("🚀 [%s] 速度: %.2f Mbps\n", bestIP, speed)
 		}
@@ -180,14 +185,19 @@ func main() {
 			Latency:     finalResults[i].Latency, // 别忘了把第一轮测得的延迟也带过来，方便存入 CSV
 			CreatedAt:   time.Now(),              // 记录这一刻的时间
 		})
+
+		outResults++
+		if outResults == *outCount {
+			i = *outCount * 2
+		}
 	}
 
-	// 11. 按速度再次排序
+	// 14. 按速度再次排序
 	sort.Slice(finalSorted, func(i, j int) bool {
 		return finalSorted[i].DownloadMBs > finalSorted[j].DownloadMBs
 	})
 
-	// 12. 假设结果已经存储在 finalSorted 切片中
+	// 15. 假设结果已经存储在 finalSorted 切片中
 	if len(finalResults) > 0 {
 		// 只有当搜到的 IP 数量大于 0 时，才覆盖旧的 result.json
 		saveToCSV(*outFile+".csv", finalSorted)
