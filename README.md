@@ -2,6 +2,16 @@
 
 一个基于 Go 语言开发的 Cloudflare 优选 IP 扫描工具。
 
+# cf-scanner
+
+![Build Status](https://img.shields.io/github/actions/workflow/status/gzjjjfree/cf-scanner/release.yml?branch=main&style=flat-square)
+
+![Latest Release](https://img.shields.io/github/v/release/gzjjjfree/cf-scanner?style=flat-square&color=blue)
+
+![License](https://img.shields.io/github/license/gzjjjfree/cf-scanner?style=flat-square)
+
+![Downloads](https://img.shields.io/github/downloads/gzjjjfree/cf-scanner/total?style=flat-square&color=orange)
+
 ## ✨ 特性
 - **多阶段扫描**：支持 IP 段随机抽样，兼顾效率与覆盖面。
 - **自动适配**：直接输出 `result.json` 供 V2Ray 客户端加载 IP 池。

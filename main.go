@@ -28,7 +28,7 @@ func main() {
 	outFile := flag.String("o", "result", "输出文件路径加前缀 (不带后缀)")
 	workerCount := flag.Int("n", 100, "并发协程数")
 	latency := flag.Int64("l", 200, "最低延时")
-	minSpeed := flag.Float64("s", 10, "最低延时")
+	minSpeed := flag.Float64("s", 10, "最低下载")
 	outCount := flag.Int("on", 100, "最终结果数")
 	testCount := flag.Int("tn", 500, "单个 IP 段期望测试的 IP 数量")
 	help := flag.Bool("h", false, "显示帮助信息")
