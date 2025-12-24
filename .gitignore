@@ -1,0 +1,9 @@
+cf-scanner.exe
+cf-scanner
+scanner
+scanner.exe
+result.json
+result.csv
+ip.txt
+*.log
+* text=auto eol=lf
