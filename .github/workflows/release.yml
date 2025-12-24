@@ -2,12 +2,15 @@ name: Go Build and Release
 
 on:
   push:
-    branches: [ "main" ]
+    tags:
+      - 'v*' # 仅当推送以 v 开头的标签（如 v1.0.1）时触发发布逻辑
 
 jobs:
   build:
-    name: Build Multi-Platform
+    name: Build and Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 赋予 Actions 写入 Release 的权限
     strategy:
       matrix:
         goos: [linux, windows, darwin]
@@ -20,28 +23,29 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24.4'
-        check-latest: true
-        # 自动处理缓存，加快以后编译速度
-        cache: true 
+        go-version: '1.21'
+        cache: true
 
     - name: Build Binary
       run: |
-        # 准备输出目录
         mkdir -p release
-        
-        # 设置文件名
         BINARY_NAME=cf-scanner
         if [ "${{ matrix.goos }}" = "windows" ]; then
           BINARY_NAME=cf-scanner.exe
         fi
         
-        # 核心：编译当前目录 (.) 而不是单个文件 (main.go)
-        # 加上 -ldflags "-s -w" 可以减小生成的文件体积
-        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-s -w" -o release/$BINARY_NAME-${{ matrix.goos }}-${{ matrix.goarch }} .
+        # 获取当前的 Tag 名字（例如 v1.0.1）
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        
+        # 核心：使用 -X 注入变量内容。注意这里的 main.version 对应 main 包里的 version 变量
+        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+        go build -ldflags "-s -w -X 'main.version=${TAG_NAME}'" \
+        -o release/$BINARY_NAME-${{ matrix.goos }}-${{ matrix.goarch }} .
 
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
+    - name: Create Release and Upload Assets
+      uses: softprops/action-gh-release@v1
       with:
-        name: scanner-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: release/*
+        files: release/* # 将所有编译产物上传到 Release 页面
+        generate_release_notes: true # 自动根据提交日志生成版本说明
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -16,6 +16,9 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
+// 定义一个全局变量，初始为空。编译时 GitHub Actions 会把版本号注入到这里。
+var version = "v0.0.0"
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -29,6 +32,7 @@ func main() {
 	outCount := flag.Int("on", 100, "最终结果数")
 	testCount := flag.Int("tn", 500, "单个 IP 段期望测试的 IP 数量")
 	help := flag.Bool("h", false, "显示帮助信息")
+	showVersion := flag.Bool("v", false, "显示版本号")
 
 	// 2. 自定义帮助信息显示方式
 	flag.Usage = func() {
@@ -47,6 +51,11 @@ func main() {
 	if *help {
 		flag.Usage()
 		return
+	}
+
+	if *showVersion {
+		fmt.Printf("cf-scanner 版本: %s\n", version)
+		os.Exit(0)
 	}
 
 	// 3. 读取并解析 IP 段文件
@@ -250,6 +259,7 @@ func saveToJSON(filename string, data []FinalResult) {
 	encoder.Encode(data)
 }
 
+// ip 段取样
 func pickSamples(ips []string, testCount int) []string {
 	// 引入随机步长
 	targetCount := testCount // 我们希望最终测试的 IP 数量
