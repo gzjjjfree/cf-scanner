@@ -1,17 +1,13 @@
 name: Go Build and Release
 
-# 触发条件：当推送到 main 分支时
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
     branches: [ "main" ]
 
 jobs:
   build:
     name: Build Multi-Platform
     runs-on: ubuntu-latest
-    # 策略：并行编译不同系统和架构
     strategy:
       matrix:
         goos: [linux, windows, darwin]
@@ -24,18 +20,25 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24.4' # 根据你的 Go 版本调整
+        go-version: '1.24.4'
+        check-latest: true
+        # 自动处理缓存，加快以后编译速度
+        cache: true 
 
     - name: Build Binary
       run: |
-        # 定义文件名
+        # 准备输出目录
+        mkdir -p release
+        
+        # 设置文件名
         BINARY_NAME=cf-scanner
         if [ "${{ matrix.goos }}" = "windows" ]; then
           BINARY_NAME=cf-scanner.exe
         fi
         
-        # 执行跨平台编译
-        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o release/$BINARY_NAME-${{ matrix.goos }}-${{ matrix.goarch }} main.go
+        # 核心：编译当前目录 (.) 而不是单个文件 (main.go)
+        # 加上 -ldflags "-s -w" 可以减小生成的文件体积
+        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-s -w" -o release/$BINARY_NAME-${{ matrix.goos }}-${{ matrix.goarch }} .
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
