@@ -1,0 +1,44 @@
+name: Go Build and Release
+
+# 触发条件：当推送到 main 分支时
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build Multi-Platform
+    runs-on: ubuntu-latest
+    # 策略：并行编译不同系统和架构
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.4' # 根据你的 Go 版本调整
+
+    - name: Build Binary
+      run: |
+        # 定义文件名
+        BINARY_NAME=cf-scanner
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          BINARY_NAME=cf-scanner.exe
+        fi
+        
+        # 执行跨平台编译
+        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o release/$BINARY_NAME-${{ matrix.goos }}-${{ matrix.goarch }} main.go
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: scanner-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: release/*
