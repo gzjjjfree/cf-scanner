@@ -13,13 +13,36 @@
 ![Downloads](https://img.shields.io/github/downloads/gzjjjfree/cf-scanner/total?style=flat-square&color=orange)
 
 ## ✨ 特性
-- **多阶段扫描**：支持 IP 段随机抽样，兼顾效率与覆盖面。
+- **多阶段扫描**：支持 IP 段各段随机抽样，兼顾效率与覆盖面。
 - **自动适配**：直接输出 `result.json` 供 V2Ray 客户端加载 IP 池。
 - **实时反馈**：带动态旋转图标的进度条，展示详细测速耗时。
+- **测速效果**：不测试丢包率，注重延迟与下载速度，实测效果显著。
 
-## 🚀 快速开始
-1. 下载对应平台的 [Releases](你的链接) 版本。
-2. 准备 `ip.txt`（每行一个 IP 段）[ip.txt](https://www.cloudflare.com/ips-v4)。
-3. 运行扫描：
-   ```bash
-   ./cf-scanner -d 你网站上测速的文件路径如：www.speed.com/10mb.bin
+# 📖 使用指南 (Usage Guide)
+
+本工具旨在帮助用户在海量的 Cloudflare IP 中精准筛选出适合本地网络环境的优质节点。
+
+---
+
+### 1. 准备工作在运行程序前，请确保当前目录下存在一个 ip.txt 文件。
+* **格式**：每行一个 CIDR 格式的 IP 段（例如 104.16.0.0/12）或单个 IP 地址。
+* **推荐**：您可以从 Cloudflare 官方 IPv4 地址列表获取最新的网段。
+ 
+### 2. 常用运行命令
+
+您可以根据需求调整扫描强度：
+
+* **标准扫描**（推荐，用于日常优选，默认测试 Cloudflare 官方网站）：
+  ```bash
+  ./cf-scanner
+  ```
+
+* **命令行参数扫描**
+* 请运行 -h 查看具体用法
+  ```bash
+  ./cf-scanner -h
+  ```
+
+* **result.json 用法**
+* 配合 cloudflare-vless-worker/worker.js 及 v5-result 使用 
+* 具体用法查看上两个项目
