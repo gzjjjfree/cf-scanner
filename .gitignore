@@ -4,6 +4,7 @@ scanner
 scanner.exe
 result.json
 result.csv
+okresult*
 ip.txt
 *.log
 * text=auto eol=lf

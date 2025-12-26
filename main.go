@@ -33,6 +33,8 @@ func main() {
 	testCount := flag.Int("tn", 500, "单个 IP 段期望测试的 IP 数量")
 	help := flag.Bool("h", false, "显示帮助信息")
 	showVersion := flag.Bool("v", false, "显示版本号")
+	outputFile := flag.String("p", "./okresult.json", "输出到指定 JSON 文件（追加模式）")
+	appendMode := flag.Bool("a", false, "是否使用追加模式写入文件")
 
 	// 2. 自定义帮助信息显示方式
 	flag.Usage = func() {
@@ -169,8 +171,12 @@ func main() {
 		fmt.Printf("排名 %d: [%s], 延迟: %v\n", i+1, finalResults[i].IP, finalResults[i].Latency)
 	}
 
+	top := *outCount * 2
+	if len(finalResults) < *outCount*2 {
+		top = len(finalResults)
+	}
 	// 13. 取前 outCount 名进行深度测速
-	fmt.Printf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", *outCount*2, *outCount)
+	fmt.Printf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", top, *outCount)
 	var finalSorted []FinalResult
 	outResults := 0
 	for i := 0; i < len(finalResults) && i < *outCount*2; i++ {
@@ -207,10 +213,18 @@ func main() {
 	})
 
 	// 15. 假设结果已经存储在 finalSorted 切片中
-	if len(finalResults) > 0 {
+	if len(finalSorted) > 0 {
 		// 只有当搜到的 IP 数量大于 0 时，才覆盖旧的 result.json
 		saveToCSV(*outFile+".csv", finalSorted)
 		saveToJSON(*outFile+".json", finalSorted)
+		if *appendMode {
+			err := appendToJSONFile(*outputFile, finalSorted)
+			if err != nil {
+				fmt.Printf("保存文件失败: %v\n", err)
+			} else {
+				fmt.Printf("结果已追加至: %s\n", *outputFile)
+			}
+		}
 		fmt.Printf("\n结果已保存至 %s.csv 和 %s.json\n", *outFile, *outFile)
 	} else {
 		fmt.Println("本次未搜到优质 IP，保留旧的配置文件。")
@@ -306,4 +320,50 @@ func startSpinner(ctx context.Context, spinnerChars []string) {
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
+}
+
+func appendToJSONFile(path string, newResults []FinalResult) error {
+	var existingData []map[string]interface{}
+
+	// 1. 尝试读取现有文件
+	fileData, err := os.ReadFile(path)
+	if err == nil && len(fileData) > 0 {
+		// 如果文件存在且不为空，解析现有内容
+		if err := json.Unmarshal(fileData, &existingData); err != nil {
+			// 如果解析失败，说明原文件可能不是合法的 JSON 数组，记录警告
+			fmt.Printf("警告: 原文件格式不兼容，将创建新数组: %v\n", err)
+			existingData = []map[string]interface{}{}
+		}
+	}
+
+	// 2. 将新结果转换为 map 结构（为了只保留带 json 标签的字段）
+	// 这样做可以确保忽略那些标记为 `json:"-"` 的字段
+	for _, res := range newResults {
+		// 我们通过这种方式只提取带 json 标签的字段
+		item := map[string]interface{}{
+			"address": res.IP,
+		}
+
+		// 可选：在这里做去重逻辑
+		isDuplicate := false
+		for _, existing := range existingData {
+			if existing["address"] == res.IP {
+				isDuplicate = true
+				break
+			}
+		}
+
+		if !isDuplicate {
+			existingData = append(existingData, item)
+		}
+	}
+
+	// 3. 序列化回 JSON 数组（带缩进方便阅读）
+	updatedJSON, err := json.MarshalIndent(existingData, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	// 4. 覆盖写入文件
+	return os.WriteFile(path, updatedJSON, 0644)
 }
