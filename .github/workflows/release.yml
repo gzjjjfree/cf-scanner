@@ -13,7 +13,7 @@ jobs:
       contents: write # 赋予 Actions 写入 Release 的权限
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
+        goos: [linux, windows, android, darwin]
         goarch: [amd64, arm64]
 
     steps:
