@@ -13,8 +13,28 @@ jobs:
       contents: write # 赋予 Actions 写入 Release 的权限
     strategy:
       matrix:
-        goos: [linux, windows, android, darwin]
-        goarch: [amd64, arm64]
+        include:
+          # --- Windows ---
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64  # 适用于 Surface Pro X 等
+
+          # --- Linux (服务器) ---
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+
+          # --- Android (手机终端) ---
+          - goos: android
+            goarch: arm64  # 这是你最需要的，用于 data/local/tmp 运行
+
+          # --- macOS ---
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64  # M1/M2/M3 芯片
 
     steps:
     - name: Checkout Code
