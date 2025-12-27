@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*' # 仅当推送以 v 开头的标签（如 v1.0.1）时触发发布逻辑
+  workflow_dispatch: # 👈 加入这一行，允许手动点击运行
 
 jobs:
   build:
