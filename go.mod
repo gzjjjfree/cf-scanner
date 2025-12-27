@@ -1,4 +1,4 @@
-module cf-scanner
+module github.com/gzjjjfree/cf-scanner
 
 go 1.24.4
 

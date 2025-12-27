@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"bufio"
@@ -8,15 +8,50 @@ import (
 	"net"
 	"os"
 	"strings"
-	"time"
 )
 
 type IPItem struct {
 	Address string `json:"address"`
 }
 
+func ParseIP(c Config) ([][]string, int) {
+	// 读取并解析 IP 段文件
+	cidrList, isJSONInput, err := ReadLines(c.IPFile)
+	if err != nil {
+		fmt.Printf("无法读取 IP 文件: %v\n", err)
+		return nil, 0
+	}
+
+	// 每段分别取样
+	ipGroups := make([][]string, 1)
+	for _, cidr := range cidrList {
+		ips, _ := ParseCIDR(cidr)
+		if isJSONInput {
+			// json 文件全部 ip 读入groups[0]
+			ipGroups[0] = append(ipGroups[0], ips...)
+		} else {
+			// 每个 ip 段分别取样
+			groups := pickSamples(ips, c.TestCount)
+			fmt.Printf("IP 段 [%v] 随机抽样数为: %v\n", cidr, len(groups))
+			// 二维切片 ipGroups 的每个切片都是一个 ip 段取样的结果
+			ipGroups = append(ipGroups, groups)
+		}
+	}
+
+	// 预计算总数 (非常重要！)
+	actualTaskCount := 0
+	for i := 0; i < len(ipGroups); i++ {
+		for o := 0; o < len(ipGroups[i]); o++ {
+			actualTaskCount++
+		}
+	}
+
+	fmt.Printf("解析完成，总计 %d 个 IP，开始随机抽样扫描...\n", actualTaskCount)
+	return ipGroups, actualTaskCount
+}
+
 // readLines 从文件中读取所有行
-func readLines(path string) ([]string, bool, error) {
+func ReadLines(path string) ([]string, bool, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, false, err
@@ -66,13 +101,6 @@ func ParseCIDR(cidr string) ([]string, error) {
 		return nil, err
 	}
 
-	// 检查是否为 IPv6 且掩码过大
-	ones, bits := ipnet.Mask.Size()
-	// 如果是 IPv6 且掩码小于 120 (剩下的 IP 太多)，则不能全量遍历
-	if bits == 128 && ones < 120 {
-		return handleLargeIPv6(ipnet), nil
-	}
-
 	// 常规遍历 (适用于 IPv4 或极小的 IPv6 段)
 	var ips []string
 	for curr := ip.Mask(ipnet.Mask); ipnet.Contains(curr); inc(curr) {
@@ -88,40 +116,6 @@ func ParseCIDR(cidr string) ([]string, error) {
 	return ips[1 : len(ips)-1], nil
 }
 
-// 专门处理大型 IPv6 段：随机抽取一定数量的 IP (已弃)
-func handleLargeIPv6(ipnet *net.IPNet) []string {
-	var ips []string
-	targetCount := 512 // 随机抽取 512 个样本
-
-	// 获取网段的起始 IP (16字节)
-	baseIP := ipnet.IP
-	// 获取掩码
-	mask := ipnet.Mask
-
-	rand.Seed(time.Now().UnixNano())
-
-	for i := 0; i < targetCount; i++ {
-		// 1. 创建一个新的 16 字节切片作为候选 IP
-		randomIP := make(net.IP, 16)
-
-		// 2. 生成 16 字节的随机数据
-		rand.Read(randomIP)
-
-		// 3. 核心位运算：
-		// 结果 IP = (基础网段 IP & 掩码) | (随机数据 & ~掩码)
-		// 简单来说：保留掩码覆盖的位，其余位填充随机数
-		for j := 0; j < 16; j++ {
-			// (baseIP[j] & mask[j]) 提取网络前缀部分
-			// (randomIP[j] & ^mask[j]) 提取随机的主机部分
-			randomIP[j] = (baseIP[j] & mask[j]) | (randomIP[j] & ^mask[j])
-		}
-
-		ips = append(ips, randomIP.String())
-	}
-
-	return ips
-}
-
 // 通用的 IP 自增函数，支持 IPv4 和 IPv6
 func inc(ip net.IP) {
 	for j := len(ip) - 1; j >= 0; j-- {
@@ -130,4 +124,37 @@ func inc(ip net.IP) {
 			break
 		}
 	}
+}
+
+// ip 段取样
+func pickSamples(ips []string, testCount int) []string {
+	// 引入随机步长
+	targetCount := testCount // 我们希望最终测试的 IP 数量
+	var currentStep int
+
+	totalIPs := len(ips)
+	if totalIPs <= targetCount {
+		// 如果 IP 总数还没到希望最终测试的数量，没必要抽样，直接全测
+		currentStep = 1
+	} else {
+		// 自动计算步长：总数 / 目标数
+		// 例如：500,000 / 200 = 2500 (步长)
+		currentStep = totalIPs / targetCount
+	}
+
+	var sampled []string
+
+	for i := 0; i < totalIPs; i += currentStep {
+		// 计算当前区间的结束位置
+		end := i + currentStep
+		if end > totalIPs {
+			end = totalIPs
+		}
+
+		// 在 [i, end) 区间内随机选一个索引
+		randomIndex := i + rand.Intn(end-i)
+		sampled = append(sampled, ips[randomIndex])
+	}
+
+	return sampled
 }

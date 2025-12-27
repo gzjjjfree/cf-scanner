@@ -1,4 +1,4 @@
-package main
+package scanner
 
 import (
 	"context"
@@ -14,16 +14,6 @@ import (
 
 	"github.com/schollz/progressbar/v3"
 )
-
-// 结构体定义，用于 JSON 和 CSV 导出
-type FinalResult struct {
-	IP          string    `json:"address"`
-	Latency     string    `json:"-"` // 用于展示和 CSV 的字符串
-	DownloadMBs float64   `json:"-"` // 下载速度
-	RawLatency  int64     `json:"-"` // 内部排序用的数值 (ms)
-	isSuccess   bool      `json:"-"`
-	CreatedAt   time.Time `json:"-"` // 新增：记录测试时间
-}
 
 // ScanIP 对指定 IP 进行探测
 func ScanIP(ip string, domain string, timeout time.Duration, latency int64) FinalResult {
@@ -43,7 +33,7 @@ func ScanIP(ip string, domain string, timeout time.Duration, latency int64) Fina
 
 	start := time.Now()
 
-	// 1. TCP 拨号测试
+	// TCP 拨号测试
 	conn, err := net.DialTimeout(network, net.JoinHostPort(ip, "443"), timeout)
 	if err != nil {
 		// 如果失败，返回 IP，但标记 isSuccess 为 false
@@ -51,7 +41,7 @@ func ScanIP(ip string, domain string, timeout time.Duration, latency int64) Fina
 	}
 	defer conn.Close()
 
-	// 2. TLS 握手测试
+	// TLS 握手测试
 	tlsConn := tls.Client(conn, &tls.Config{
 		ServerName:         sni,
 		InsecureSkipVerify: true,
@@ -87,7 +77,7 @@ type SpeedResult struct {
 
 // TestSpeed 对指定 IP 进行下载测速
 func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error) {
-	// 1. 修正 domain 参数
+	// 修正 domain 参数
 	// 去掉 https:// 或 http:// 协议头
 	cleanDomain := strings.TrimPrefix(domain, "https://")
 	cleanDomain = strings.TrimPrefix(cleanDomain, "http://")
@@ -97,7 +87,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		cleanDomain = cleanDomain[:idx]
 	}
 
-	// 2. 创建一个自定义的传输层
+	// 创建一个自定义的传输层
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			// 这一行非常重要：跳过证书过期、域名不匹配等所有校验
@@ -118,7 +108,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		Timeout:   timeout + 5*time.Second, // 测速超时稍长一点
 	}
 
-	// 3. 构造下载请求
+	// 构造下载请求
 	// 建议在服务器上放一个 10MB 的测试文件，如果没有，可以暂时请求主页
 	url := fmt.Sprintf("https://%s", domain)
 	req, _ := http.NewRequest("GET", url, nil)
@@ -141,10 +131,10 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 
 	defer resp.Body.Close()
 
-	// 5. 设置一个标记，用于判断是否已经成功接收到首字节
+	// 设置一个标记，用于判断是否已经成功接收到首字节
 	firstByteReceived := make(chan struct{})
 
-	// 6. 启动定时器监控首字节
+	// 启动定时器监控首字节
 	go func() {
 		select {
 		case <-firstByteReceived:
@@ -157,7 +147,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		}
 	}()
 
-	// 7. 读取内容并计算字节数
+	// 读取内容并计算字节数
 	bar := progressbar.NewOptions(-1,
 		progressbar.OptionSetDescription(" \t"),
 		progressbar.OptionSetWriter(os.Stdout), // 改用 Stdout 试试
@@ -168,7 +158,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		progressbar.OptionClearOnFinish(), // 完成后清理，保持界面整洁
 	)
 
-	// 8. 核心：在规定时间内读取数据
+	// 核心：在规定时间内读取数据
 	// 我们手动处理读取过程，计算读取了多少字节
 	var downloadedBytes int64
 	buffer := make([]byte, 64*1024) // 32KB 缓冲区
@@ -201,7 +191,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		}
 	}
 
-	// 9. 测速完成后，清理掉那个斜杠，保持界面整洁
+	// 测速完成后，清理掉那个斜杠，保持界面整洁
 	bar.Describe("Done")
 	bar.Finish()
 
@@ -212,7 +202,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		return 0, fmt.Errorf("测速数据不足")
 	}
 
-	// 10. 公式：字节 * 8 / 1024 / 1024 / 秒
+	// 公式：字节 * 8 / 1024 / 1024 / 秒
 	mbps := (float64(downloadedBytes) * 8) / (1024 * 1024) / actualDuration
 	return mbps, nil
 }
