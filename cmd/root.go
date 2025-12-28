@@ -84,12 +84,12 @@ var rootCmd = &cobra.Command{
 
 		fmt.Println("\n✅ 优选后的 IP:")
 		for i := 0; i < len(finalSorted); i++ {
-			fmt.Printf("排名 %d: [%s], 延迟: %v  速度: %.2f Mbps\n", i+1, finalSorted[i].IP, finalSorted[i].Latency, finalSorted[i].DownloadMBs)
+			fmt.Printf("排名 %d: [%s], 延迟: %v  速度: %.2f MB/s\n", i+1, finalSorted[i].IP, finalSorted[i].Latency, finalSorted[i].DownloadMBs)
 		}
 
 		fmt.Println("\n✅ 最终优选建议:")
 		if len(finalSorted) > 0 {
-			fmt.Printf("最佳 IP: [%s] | 预估带宽: %.2f Mbps\n", finalSorted[0].IP, finalSorted[0].DownloadMBs)
+			fmt.Printf("最佳 IP: [%s] | 预估带宽: %.2f MB/s\n", finalSorted[0].IP, finalSorted[0].DownloadMBs)
 		}
 	},
 }
