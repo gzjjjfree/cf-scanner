@@ -202,7 +202,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 		return 0, fmt.Errorf("测速数据不足")
 	}
 
-	// 公式：字节 * 8 / 1024 / 1024 / 秒
-	mbps := (float64(downloadedBytes) * 8) / (1024 * 1024) / actualDuration
-	return mbps, nil
+	// 公式：字节 / 1024 / 1024 / 秒
+	MBs := (float64(downloadedBytes)) / (1024 * 1024) / actualDuration
+	return MBs, nil
 }

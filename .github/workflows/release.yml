@@ -60,7 +60,7 @@ jobs:
         
         # 核心：使用 -X 注入变量内容。注意这里的 main.version 对应 main 包里的 version 变量
         GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-        go build -ldflags "-s -w -X 'main.version=${TAG_NAME}'" \
+        go build -ldflags "-s -w -X 'github.com/gzjjjfree/cf-scanner/cmd.Version=${TAG_NAME}'" \
         -o release/$BINARY_NAME-${{ matrix.goos }}-${{ matrix.goarch }} .
 
     - name: Create Release and Upload Assets

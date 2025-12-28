@@ -115,10 +115,10 @@ func RunDeepTest(outCount int, domain string, minSpeed float64, finalResults []F
 			fmt.Printf("测速异常: %v\n", err)
 			continue
 		} else if speed < minSpeed {
-			fmt.Printf("速率过低: [%s] 速度: %.2f Mbps\n", bestIP, speed)
+			fmt.Printf("速率过低: [%s] 速度: %.2f MB/s\n", bestIP, speed)
 			continue
 		} else {
-			fmt.Printf("🚀 [%s] 速度: %.2f Mbps\n", bestIP, speed)
+			fmt.Printf("🚀 [%s] 速度: %.2f MB/s\n", bestIP, speed)
 		}
 
 		finalSorted = append(finalSorted, FinalResult{

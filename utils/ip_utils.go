@@ -14,9 +14,9 @@ type IPItem struct {
 	Address string `json:"address"`
 }
 
-func ParseIP(c Config) ([][]string, int) {
+func ParseIP(ipFile string, testCount int) ([][]string, int) {
 	// 读取并解析 IP 段文件
-	cidrList, isJSONInput, err := ReadLines(c.IPFile)
+	cidrList, isJSONInput, err := ReadLines(ipFile)
 	if err != nil {
 		fmt.Printf("无法读取 IP 文件: %v\n", err)
 		return nil, 0
@@ -31,7 +31,7 @@ func ParseIP(c Config) ([][]string, int) {
 			ipGroups[0] = append(ipGroups[0], ips...)
 		} else {
 			// 每个 ip 段分别取样
-			groups := pickSamples(ips, c.TestCount)
+			groups := pickSamples(ips, testCount)
 			fmt.Printf("IP 段 [%v] 随机抽样数为: %v\n", cidr, len(groups))
 			// 二维切片 ipGroups 的每个切片都是一个 ip 段取样的结果
 			ipGroups = append(ipGroups, groups)

@@ -29,7 +29,7 @@ func ParseConfig() Config {
 	flag.StringVar(&c.OutFile, "o", "result", "输出文件路径加前缀 (不带后缀)")
 	flag.IntVar(&c.WorkerCount, "n", 100, "并发协程数")
 	flag.Int64Var(&c.LatencyLimit, "l", 200, "最低延时")
-	flag.Float64Var(&c.MinSpeed, "s", 10, "最低下载")
+	flag.Float64Var(&c.MinSpeed, "s", 1, "最低下载")
 	flag.IntVar(&c.OutCount, "on", 100, "最终结果数")
 	flag.IntVar(&c.TestCount, "tn", 500, "单个 IP 段期望测试的 IP 数量")
 	flag.BoolVar(&c.AppendMode, "a", false, "是否使用追加模式写入文件")
