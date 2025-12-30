@@ -3,9 +3,12 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/gzjjjfree/cf-scanner/gui"
 	"github.com/gzjjjfree/cf-scanner/scanner"
 	"github.com/gzjjjfree/cf-scanner/utils"
+	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +28,7 @@ var (
 	testNum    int     // -t
 	appendMode bool    // -a
 	showVer    bool    // -v
+	showWeb    bool    // -w
 )
 
 var rootCmd = &cobra.Command{
@@ -33,6 +37,20 @@ var rootCmd = &cobra.Command{
 	Long: `🚀 Cloudflare IP Scanner (Cobra 版)
 能够快速扫描 IP 段，根据延迟和下载速度筛选出最优质的 Cloudflare 节点。`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// 是否显示 Web GUI
+		if showWeb {
+			// 在另一个线程启动 Web 服务，防止阻塞
+			go func() {
+				gui.Makeweb(fPath, sniDomain)
+			}()
+
+			// 给服务器一点启动时间（比如 500ms），然后打开浏览器
+			time.Sleep(time.Millisecond * 500)
+			gui.OpenBrowser("http://127.0.0.1:8080")
+			// 保持主进程不退出
+			select {}
+		}
+
 		// 优先处理版本号逻辑
 		if showVer {
 			fmt.Printf("cf-scanner version %s\n", Version)
@@ -41,13 +59,14 @@ var rootCmd = &cobra.Command{
 
 		// 打印启动参数预览（可选）
 		fmt.Printf("🎯 开始扫描任务...\n")
-		fmt.Printf("   [文件]: %s  [并发]: %d  [目标]: %s\n", fPath, nThreads, sniDomain)
-		fmt.Printf("   [过滤]: 延迟 <%dms, 保留的数量 %v \n\n", minLatency, finalCount)
+		fmt.Printf("   [文件]: %s  [并发]: %d  [抽样]: %d/段  [目标]: %s\n", fPath, nThreads, testNum, sniDomain)
+		fmt.Printf("   [过滤]: 延迟 <%dms, 最低下载速度 >%v, 保留的数量 %v \n\n", minLatency, minSpeed, finalCount)
 
-		// --- 在这里调用你原来的核心扫描代码 ---
-		ipGroups, actualTaskCount := utils.ParseIP(fPath, testNum)
+		// 对 IP 段进行随机抽样
+		ipGroups, actualTaskCount := utils.ParseIP(fPath, testNum, BridgeLogger)
 
-		finalResults := scanner.RunScanPool(ipGroups, nThreads, sniDomain, minLatency, actualTaskCount)
+		// 扫描延迟
+		finalResults := scanner.RunScanPool(ipGroups, nThreads, sniDomain, minLatency, actualTaskCount, BridgeLogger)
 
 		// 输出前 outCount 名
 		fmt.Printf("\n--- 优选结果 Top %v 最后结果 %v---\n", finalCount*2, len(finalResults))
@@ -55,14 +74,12 @@ var rootCmd = &cobra.Command{
 			fmt.Printf("排名 %d: [%s], 延迟: %v\n", i+1, finalResults[i].IP, finalResults[i].Latency)
 		}
 
-		top := finalCount * 2
-		if len(finalResults) < finalCount*2 {
-			top = len(finalResults)
-		}
+		top := min(len(finalResults), finalCount*2)
 		// 取前 outCount 名进行深度测速
 		fmt.Printf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", top, finalCount)
 
-		finalSorted := scanner.RunDeepTest(finalCount, sniDomain, minSpeed, finalResults)
+		// 进行测速
+		finalSorted := scanner.RunDeepTest(finalCount, sniDomain, minSpeed, finalResults, BridgeLogger)
 
 		// 假设结果已经存储在 finalSorted 切片中
 		if len(finalSorted) > 0 {
@@ -121,7 +138,36 @@ func init() {
 
 	// 4. 其他
 	rootCmd.Flags().BoolVarP(&showVer, "version", "v", false, "显示版本号")
+	rootCmd.Flags().BoolVarP(&showWeb, "web", "w", false, "显示 Web GUI")
 
 	// 如果你想修改默认的帮助信息展示，可以在这里微调
 	rootCmd.Flags().SortFlags = false // 禁用按字母排序，改为按代码定义的顺序显示（更符合逻辑）
+}
+
+// 定义一个空的结构体，作为接口的载体
+type testLogger struct {
+	Theme progressbar.Theme
+}
+
+// 让 testLogger 实现 WriteLog 方法
+func (w testLogger) WriteLog(msg string) {
+	fmt.Print(msg)
+}
+
+func (w testLogger) GetTheme() progressbar.Theme {
+	return w.Theme
+}
+
+func (w testLogger) GetColorCodes() bool {
+	return true
+}
+
+var BridgeLogger = testLogger{
+	Theme: progressbar.Theme{
+		Saucer:        "[green]=[reset]",
+		SaucerHead:    "[cyan]>[reset]",
+		SaucerPadding: " ",
+		BarStart:      "[blue][[reset]",
+		BarEnd:        "[blue]][reset]",
+	},
 }

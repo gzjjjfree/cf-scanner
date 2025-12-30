@@ -10,8 +10,20 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
+type writerWrapper struct {
+	l Logger
+}
+
+func (w writerWrapper) Write(p []byte) (n int, err error) {
+	// 将进度条发送过来的 []byte 转换为 string，并调用你的接口方法
+	msg := string(p)
+	//msg = strings.ReplaceAll(msg, "\r", "")
+	w.l.WriteLog(msg)
+	return len(p), nil
+}
+
 // RunScanPool 启动并发扫描
-func RunScanPool(ipGroups [][]string, workerCount int, domain string, latency int64, total int) []FinalResult {
+func RunScanPool(ipGroups [][]string, workerCount int, domain string, latency int64, total int, l Logger) []FinalResult {
 	jobs := make(chan string, 200)
 	resultsChan := make(chan FinalResult, 200)
 	var wg sync.WaitGroup
@@ -22,23 +34,25 @@ func RunScanPool(ipGroups [][]string, workerCount int, domain string, latency in
 	ctx, cancel := context.WithCancel(context.Background())
 	go startSpinner(ctx, spinnerChars) // 启动旋转图标
 
+	var bar *progressbar.ProgressBar
+
+	// 1. 现场定义一个适配器，把 logger 包装成 io.Writer
+	// 我们定义一个自定义 Writer，它内部持有一个 logger 接口
+	loggerAdapter := writerWrapper{l: l}
+
+	//theme = progressbar.Theme{}
 	// 初始化进度条
-	bar := progressbar.NewOptions(total,
+	bar = progressbar.NewOptions(total,
+		progressbar.OptionSetWriter(loggerAdapter),
 		progressbar.OptionSetDescription("    正在扫描 IP"),
-		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionEnableColorCodes(l.GetColorCodes()),
 		progressbar.OptionShowBytes(false), // 扫描不是字节，关闭它
 		progressbar.OptionSetWidth(20),
-		progressbar.OptionSetTheme(progressbar.Theme{
-			Saucer:        "[green]=[reset]",
-			SaucerHead:    "[green]>[reset]",
-			SaucerPadding: " ",
-			BarStart:      "[",
-			BarEnd:        "]",
-		}),
+		progressbar.OptionSetTheme(l.GetTheme()),
 	)
 
 	// 启动工人
-	for i := 0; i < workerCount; i++ {
+	for range workerCount {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -103,22 +117,22 @@ func startSpinner(ctx context.Context, spinnerChars []string) {
 	}
 }
 
-func RunDeepTest(outCount int, domain string, minSpeed float64, finalResults []FinalResult) []FinalResult {
+func RunDeepTest(outCount int, domain string, minSpeed float64, finalResults []FinalResult, l Logger) []FinalResult {
 	var finalSorted []FinalResult
 	outResults := 0
 	for i := 0; i < len(finalResults) && i < outCount*2; i++ {
 		bestIP := finalResults[i].IP
 
-		speed, err := TestSpeed(bestIP, domain, 5*time.Second)
+		speed, err := TestSpeed(bestIP, domain, 5*time.Second, l)
 
 		if err != nil {
-			fmt.Printf("测速异常: %v\n", err)
+			l.WriteLog(fmt.Sprintf("测速异常: %v\n", err))
 			continue
 		} else if speed < minSpeed {
-			fmt.Printf("速率过低: [%s] 速度: %.2f MB/s\n", bestIP, speed)
+			l.WriteLog(fmt.Sprintf("速率过低: [%s] 速度: %.2f MB/s\n", bestIP, speed))
 			continue
 		} else {
-			fmt.Printf("🚀 [%s] 速度: %.2f MB/s\n", bestIP, speed)
+			l.WriteLog(fmt.Sprintf("🚀 [%s] 速度: %.2f MB/s\n", bestIP, speed))
 		}
 
 		finalSorted = append(finalSorted, FinalResult{

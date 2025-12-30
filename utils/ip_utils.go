@@ -14,7 +14,13 @@ type IPItem struct {
 	Address string `json:"address"`
 }
 
-func ParseIP(ipFile string, testCount int) ([][]string, int) {
+// Logger 定义了需要的日志能力
+// 只要任何类型实现了这个 WriteLog 方法，就可以传参过来使用 WriteLog 方法
+type Logger interface {
+	WriteLog(string)
+}
+
+func ParseIP(ipFile string, testCount int, l Logger) ([][]string, int) {
 	// 读取并解析 IP 段文件
 	cidrList, isJSONInput, err := ReadLines(ipFile)
 	if err != nil {
@@ -46,7 +52,9 @@ func ParseIP(ipFile string, testCount int) ([][]string, int) {
 		}
 	}
 
-	fmt.Printf("解析完成，总计 %d 个 IP，开始随机抽样扫描...\n", actualTaskCount)
+	//fmt.Printf("解析完成，总计 %d 个 IP，开始随机抽样扫描...\n", actualTaskCount)
+	logMsg := fmt.Sprintf("解析完成，总计 %d 个 IP，开始随机抽样扫描...\n", actualTaskCount)
+	l.WriteLog(logMsg)
 	return ipGroups, actualTaskCount
 }
 

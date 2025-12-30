@@ -76,7 +76,7 @@ type SpeedResult struct {
 }
 
 // TestSpeed 对指定 IP 进行下载测速
-func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error) {
+func TestSpeed(ip string, domain string, timeout time.Duration, l Logger) (float64, error) {
 	// 修正 domain 参数
 	// 去掉 https:// 或 http:// 协议头
 	cleanDomain := strings.TrimPrefix(domain, "https://")
@@ -142,19 +142,22 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 			return
 		case <-time.After(2 * time.Second):
 			// 2秒内没收到首字节，强行关闭，触发 Read 报错
-			fmt.Printf("\n[IP: %s] 首字节超时，跳过\n", ip)
+			l.WriteLog(fmt.Sprintf("\n[IP: %s] 首字节超时，跳过\n", ip))
 			resp.Body.Close()
 		}
 	}()
 
+	loggerAdapter := writerWrapper{l: l}
+
 	// 读取内容并计算字节数
 	bar := progressbar.NewOptions(-1,
+		progressbar.OptionSetWriter(loggerAdapter),
 		progressbar.OptionSetDescription(" \t"),
 		progressbar.OptionSetWriter(os.Stdout), // 改用 Stdout 试试
 		progressbar.OptionShowBytes(false),     // 关闭字节显示
 		progressbar.OptionSetWidth(20),
 		progressbar.OptionSetPredictTime(false), // 关闭剩余时间预测
-		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionEnableColorCodes(l.GetColorCodes()),
 		progressbar.OptionClearOnFinish(), // 完成后清理，保持界面整洁
 	)
 
@@ -197,7 +200,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration) (float64, error)
 
 	// 使用真正下载所耗费的时间来计算，这样结果最准
 	actualDuration := time.Since(downloadStart).Seconds()
-	fmt.Printf("下载耗费时间: %.2f 秒 ", actualDuration)
+	l.WriteLog(fmt.Sprintf("下载耗费时间: %.2f 秒 ", actualDuration))
 	if actualDuration <= 0 || downloadedBytes == 0 {
 		return 0, fmt.Errorf("测速数据不足")
 	}
