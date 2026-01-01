@@ -17,30 +17,23 @@ type writerWrapper struct {
 func (w writerWrapper) Write(p []byte) (n int, err error) {
 	// 将进度条发送过来的 []byte 转换为 string，并调用你的接口方法
 	msg := string(p)
-	//msg = strings.ReplaceAll(msg, "\r", "")
+
 	w.l.WriteLog(msg)
+
 	return len(p), nil
 }
 
 // RunScanPool 启动并发扫描
-func RunScanPool(ipGroups [][]string, workerCount int, domain string, latency int64, total int, l Logger) []FinalResult {
+func RunScanPool(ctx context.Context, ipGroups [][]string, workerCount int, domain string, latency int64, total int, l Logger) []FinalResult {
 	jobs := make(chan string, 200)
 	resultsChan := make(chan FinalResult, 200)
 	var wg sync.WaitGroup
 
-	// 定义旋转字符
-	var spinnerChars = []string{"\\", "|", "/", "-"}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go startSpinner(ctx, spinnerChars) // 启动旋转图标
-
 	var bar *progressbar.ProgressBar
 
-	// 1. 现场定义一个适配器，把 logger 包装成 io.Writer
-	// 我们定义一个自定义 Writer，它内部持有一个 logger 接口
+	// 定义一个适配器，把 logger 包装成 io.Writer
 	loggerAdapter := writerWrapper{l: l}
 
-	//theme = progressbar.Theme{}
 	// 初始化进度条
 	bar = progressbar.NewOptions(total,
 		progressbar.OptionSetWriter(loggerAdapter),
@@ -56,25 +49,44 @@ func RunScanPool(ipGroups [][]string, workerCount int, domain string, latency in
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for ip := range jobs {
-				// 调用同包下的 ScanIP
-				res := ScanIP(ip, domain, 2*time.Second, latency)
-				if res.isSuccess {
-					resultsChan <- res
+			for {
+				select {
+				case <-ctx.Done(): // 工人在处理每个 IP 前都会检查是否已停止
+					return
+				case ip, ok := <-jobs:
+					if !ok {
+						return
+					}
+					// 执行扫描
+					res := ScanIP(ctx, ip, domain, 2*time.Second, latency)
+
+					// 再次检查，防止在 ScanIP 完成期间 ctx 被取消
+					if ctx.Err() != nil {
+						return
+					}
+
+					if res.isSuccess {
+						resultsChan <- res
+					}
+					bar.Add(1)
 				}
-				bar.Add(1)
 			}
 		}()
+
 	}
 
 	// 投放任务
 	go func() {
+		defer close(jobs)
 		for _, group := range ipGroups {
 			for _, ip := range group {
-				jobs <- ip
+				select {
+				case <-ctx.Done(): // 如果任务取消，立即停止投放，释放协程
+					return
+				case jobs <- ip:
+				}
 			}
 		}
-		close(jobs)
 	}()
 
 	// 收集结果
@@ -88,7 +100,10 @@ func RunScanPool(ipGroups [][]string, workerCount int, domain string, latency in
 	}()
 
 	wg.Wait()
-	cancel()        // 停止旋转图标
+	// 停止旋转图标
+	if ctx.Err() != nil {
+		l.WriteLog("🛑 扫描已提前停止，正在整理已发现的结果...")
+	}
 	fmt.Print("\r") // 结束后清除掉那个图标
 	close(resultsChan)
 	<-done // 等待结果切片填充完毕
@@ -101,6 +116,7 @@ func RunScanPool(ipGroups [][]string, workerCount int, domain string, latency in
 	return finalResults
 }
 
+// 打印旋转图标的方法
 func startSpinner(ctx context.Context, spinnerChars []string) {
 	i := 0
 	for {
@@ -117,34 +133,48 @@ func startSpinner(ctx context.Context, spinnerChars []string) {
 	}
 }
 
-func RunDeepTest(outCount int, domain string, minSpeed float64, finalResults []FinalResult, l Logger) []FinalResult {
+// 启动测速
+func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed float64, finalResults []FinalResult, l Logger) []FinalResult {
 	var finalSorted []FinalResult
 	outResults := 0
-	for i := 0; i < len(finalResults) && i < outCount*2; i++ {
-		bestIP := finalResults[i].IP
 
-		speed, err := TestSpeed(bestIP, domain, 5*time.Second, l)
+	limit := min(len(finalResults), outCount*2)
 
-		if err != nil {
-			l.WriteLog(fmt.Sprintf("测速异常: %v\n", err))
-			continue
-		} else if speed < minSpeed {
-			l.WriteLog(fmt.Sprintf("速率过低: [%s] 速度: %.2f MB/s\n", bestIP, speed))
-			continue
-		} else {
-			l.WriteLog(fmt.Sprintf("🚀 [%s] 速度: %.2f MB/s\n", bestIP, speed))
-		}
+	for i := 0; i < limit; i++ {
+		select {
+		case <-ctx.Done():
+			l.WriteLog("🛑 深度测速已手动停止")
+			return finalSorted // 立即返回已经得到的结果
+		default:
 
-		finalSorted = append(finalSorted, FinalResult{
-			IP:          bestIP,
-			DownloadMBs: speed,                   // 对应结构体中的 DownloadMBs 字段
-			Latency:     finalResults[i].Latency, // 别忘了把第一轮测得的延迟也带过来，方便存入 CSV
-			CreatedAt:   time.Now(),              // 记录这一刻的时间
-		})
+			bestIP := finalResults[i].IP
 
-		outResults++
-		if outResults == outCount {
-			i = outCount * 2
+			speed, err := TestSpeed(ctx, bestIP, domain, 5*time.Second, l)
+
+			if err != nil {
+				if ctx.Err() != nil {
+					return finalSorted
+				}
+				l.WriteLog(fmt.Sprintf("下载测速异常: %v [%s]\n", err, bestIP))
+				continue
+			} else if speed < minSpeed {
+				l.WriteLog(fmt.Sprintf("速率过低: [%s] 速度: %.2f MB/s\n", bestIP, speed))
+				continue
+			} else {
+				l.WriteLog(fmt.Sprintf("🚀 [%s] 速度: %.2f MB/s\n", bestIP, speed))
+			}
+
+			finalSorted = append(finalSorted, FinalResult{
+				IP:          bestIP,
+				DownloadMBs: speed,                   // 对应结构体中的 DownloadMBs 字段
+				Latency:     finalResults[i].Latency, // 别忘了把第一轮测得的延迟也带过来，方便存入 CSV
+				CreatedAt:   time.Now(),              // 记录这一刻的时间
+			})
+
+			outResults++
+			if outResults == outCount {
+				return finalSorted
+			}
 		}
 	}
 

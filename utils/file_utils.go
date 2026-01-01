@@ -34,7 +34,7 @@ func SaveToJSON(filename string, data []scanner.FinalResult) {
 	file, _ := os.Create(filename)
 	defer file.Close()
 
-	// 如果你只需要 JSON 里显示 address 字段，
+	// 只需要 JSON 里显示 address 字段，
 	// FinalResult 里的其他字段在定义时加了 omitempty，且没有赋值时就会被隐藏
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "    ")

@@ -44,7 +44,7 @@ func ParseIP(ipFile string, testCount int, l Logger) ([][]string, int) {
 		}
 	}
 
-	// 预计算总数 (非常重要！)
+	// 预计算总数
 	actualTaskCount := 0
 	for i := 0; i < len(ipGroups); i++ {
 		for o := 0; o < len(ipGroups[i]); o++ {
@@ -52,7 +52,6 @@ func ParseIP(ipFile string, testCount int, l Logger) ([][]string, int) {
 		}
 	}
 
-	//fmt.Printf("解析完成，总计 %d 个 IP，开始随机抽样扫描...\n", actualTaskCount)
 	logMsg := fmt.Sprintf("解析完成，总计 %d 个 IP，开始随机抽样扫描...\n", actualTaskCount)
 	l.WriteLog(logMsg)
 	return ipGroups, actualTaskCount
@@ -80,7 +79,6 @@ func ReadLines(path string) ([]string, bool, error) {
 			}
 			return ips, isJSON, nil
 		}
-		// 如果 JSON 解析失败，则尝试按普通文本处理（回退机制）
 	}
 
 	// --- 逻辑判断：如果是普通文本格式 ---

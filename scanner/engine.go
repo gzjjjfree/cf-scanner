@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 )
 
 // ScanIP 对指定 IP 进行探测
-func ScanIP(ip string, domain string, timeout time.Duration, latency int64) FinalResult {
+func ScanIP(ctx context.Context, ip string, domain string, timeout time.Duration, latency int64) FinalResult {
 	// 提取纯域名用于 SNI
 	sni := domain
 	if strings.HasPrefix(sni, "http") {
@@ -33,8 +32,13 @@ func ScanIP(ip string, domain string, timeout time.Duration, latency int64) Fina
 
 	start := time.Now()
 
-	// TCP 拨号测试
-	conn, err := net.DialTimeout(network, net.JoinHostPort(ip, "443"), timeout)
+	// 使用 Dialer 配合 Context
+	dialer := net.Dialer{
+		Timeout: timeout,
+	}
+
+	// 拨号测试
+	conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip, "443"))
 	if err != nil {
 		// 如果失败，返回 IP，但标记 isSuccess 为 false
 		return FinalResult{IP: ip, isSuccess: false}
@@ -46,6 +50,13 @@ func ScanIP(ip string, domain string, timeout time.Duration, latency int64) Fina
 		ServerName:         sni,
 		InsecureSkipVerify: true,
 	})
+	
+	// TLS 握手没有直接传 ctx 的方法, 在握手前检查一次 ctx
+	select {
+	case <-ctx.Done():
+		return FinalResult{IP: ip, isSuccess: false}
+	default:
+	}
 
 	tlsConn.SetDeadline(time.Now().Add(timeout))
 	err = tlsConn.Handshake()
@@ -72,13 +83,12 @@ func ScanIP(ip string, domain string, timeout time.Duration, latency int64) Fina
 // SpeedResult 存储测速结果
 type SpeedResult struct {
 	IP    string
-	Speed float64 // 单位: Mbps
+	Speed float64 // 单位: MB/s
 }
 
 // TestSpeed 对指定 IP 进行下载测速
-func TestSpeed(ip string, domain string, timeout time.Duration, l Logger) (float64, error) {
-	// 修正 domain 参数
-	// 去掉 https:// 或 http:// 协议头
+func TestSpeed(parentCtx context.Context, ip string, domain string, timeout time.Duration, l Logger) (float64, error) {
+	// 修正 domain 参数, 去掉 https:// 或 http:// 协议头
 	cleanDomain := strings.TrimPrefix(domain, "https://")
 	cleanDomain = strings.TrimPrefix(cleanDomain, "http://")
 
@@ -109,7 +119,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration, l Logger) (float
 	}
 
 	// 构造下载请求
-	// 建议在服务器上放一个 10MB 的测试文件，如果没有，可以暂时请求主页
+	// 建议在服务器上放一个 100MB 的测试文件，如果没有，可以暂时请求主页
 	url := fmt.Sprintf("https://%s", domain)
 	req, _ := http.NewRequest("GET", url, nil)
 	// 必须手动指定 Host，这要和你的域名完全一致
@@ -117,9 +127,9 @@ func TestSpeed(ip string, domain string, timeout time.Duration, l Logger) (float
 	// 补齐模拟浏览器的头部
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-	// 使用 Context 实现“采样时间一到立即切断”
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	// 使用 Context 实现“采样时间一到立即切断”, 记得把 parentCtx 传进去
+	ctx, CancelScan := context.WithTimeout(parentCtx, timeout)
+	defer CancelScan()
 	req = req.WithContext(ctx)
 
 	resp, err := client.Do(req)
@@ -140,6 +150,8 @@ func TestSpeed(ip string, domain string, timeout time.Duration, l Logger) (float
 		case <-firstByteReceived:
 			// 正常接收到首字节，协程安全退出
 			return
+		case <-ctx.Done(): // 关键：如果用户按了停止，立即退出监控
+			return
 		case <-time.After(2 * time.Second):
 			// 2秒内没收到首字节，强行关闭，触发 Read 报错
 			l.WriteLog(fmt.Sprintf("\n[IP: %s] 首字节超时，跳过\n", ip))
@@ -149,16 +161,16 @@ func TestSpeed(ip string, domain string, timeout time.Duration, l Logger) (float
 
 	loggerAdapter := writerWrapper{l: l}
 
-	// 读取内容并计算字节数
+	// 设置转圈显示
 	bar := progressbar.NewOptions(-1,
 		progressbar.OptionSetWriter(loggerAdapter),
 		progressbar.OptionSetDescription(" \t"),
-		progressbar.OptionSetWriter(os.Stdout), // 改用 Stdout 试试
-		progressbar.OptionShowBytes(false),     // 关闭字节显示
+		progressbar.OptionShowBytes(false), // 关闭字节显示
 		progressbar.OptionSetWidth(20),
 		progressbar.OptionSetPredictTime(false), // 关闭剩余时间预测
 		progressbar.OptionEnableColorCodes(l.GetColorCodes()),
 		progressbar.OptionClearOnFinish(), // 完成后清理，保持界面整洁
+		progressbar.OptionSetVisibility(true),
 	)
 
 	// 核心：在规定时间内读取数据
@@ -168,8 +180,17 @@ func TestSpeed(ip string, domain string, timeout time.Duration, l Logger) (float
 	// 记录真正开始下载的时间（排除握手时间）
 	var downloadStart time.Time
 	firstByte := true
-
+	
+	defer bar.Close()
+	// 读取内容并计算字节数
 	for {
+		// 如果外部取消了，强行关闭 Body 触发 readErr
+		select {
+		case <-ctx.Done():
+			resp.Body.Close() // 强制关闭连接
+			return 0, ctx.Err()
+		default:
+		}
 		n, readErr := resp.Body.Read(buffer)
 		if firstByte && n > 0 {
 			close(firstByteReceived)   // 核心：通知上面的协程，我们拿到数据了！
@@ -179,13 +200,12 @@ func TestSpeed(ip string, domain string, timeout time.Duration, l Logger) (float
 
 		if n > 0 {
 			downloadedBytes += int64(n)
-			bar.Add(n)
+			bar.Add(1)
 		}
 
 		if readErr != nil {
 			// 情况 B：读取过程中时间到了（context deadline exceeded）
 			// 这是正常的，我们跳出循环去计算已经下载了多少
-			//fmt.Println(readErr.Error())
 			if readErr == io.EOF || strings.Contains(readErr.Error(), "context deadline exceeded") {
 				break
 			}
@@ -194,10 +214,7 @@ func TestSpeed(ip string, domain string, timeout time.Duration, l Logger) (float
 		}
 	}
 
-	// 测速完成后，清理掉那个斜杠，保持界面整洁
-	bar.Describe("Done")
 	bar.Finish()
-
 	// 使用真正下载所耗费的时间来计算，这样结果最准
 	actualDuration := time.Since(downloadStart).Seconds()
 	l.WriteLog(fmt.Sprintf("下载耗费时间: %.2f 秒 ", actualDuration))
