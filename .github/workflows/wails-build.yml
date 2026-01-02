@@ -51,18 +51,18 @@ jobs:
 
       - name: Build Frontend Manually
         run: |
-          # 1. 进入前端目录
           cd app/frontend
-          # 2. 安装并赋予 vite 及其依赖执行权限
           npm install
-          chmod -R +x node_modules/.bin/
-          # 3. 手动执行打包，生成 dist 文件夹
+          # 仅在非 Windows 环境修复权限
+          if [ "${{ matrix.os }}" != "windows-latest" ]; then
+            chmod -R +x node_modules/.bin/
+          fi
           npm run build
 
       - name: Build Wails App
+        # 使用 -s 标志明确跳过前端构建
         run: |
-          # 关键点：使用 -sf 标志跳过前端步骤
-          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -sf
+          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -s
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
