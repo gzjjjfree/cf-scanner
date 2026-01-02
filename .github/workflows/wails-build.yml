@@ -8,8 +8,6 @@ on:
     inputs:
       version:
         description: "发布版本号 (例如 1.0.1)"
-        required: false
-        default: "manual-build"
 
 jobs:
   build:

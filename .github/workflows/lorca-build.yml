@@ -2,10 +2,13 @@ name: Build Lorca App
 
 on:
   push:
-    branches: [ main ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "发布版本号 (例如 1.0.1)"
 
 jobs:
   build:
@@ -44,7 +47,7 @@ jobs:
       - name: Build Frontend
         shell: bash
         run: |
-          cd frontend  # 如果你的前端目录叫 app/frontend 请修改此处
+          cd lorca/frontend  # 如果你的前端目录叫 app/frontend 请修改此处
           npm install
           npm run build
 

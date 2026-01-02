@@ -3,8 +3,11 @@ name: Go Build and Release
 on:
   push:
     tags:
-      - 'v*' # 仅当推送以 v 开头的标签（如 v1.0.1）时触发发布逻辑
+      - "v*" # 仅当推送以 v 开头的标签（如 v1.0.1）时触发发布逻辑
   workflow_dispatch: # 👈 加入这一行，允许手动点击运行
+    inputs:
+      version:
+        description: "发布版本号 (例如 1.0.1)"
 
 jobs:
   build:
@@ -19,7 +22,7 @@ jobs:
           - goos: windows
             goarch: amd64
           - goos: windows
-            goarch: arm64  # 适用于 Surface Pro X 等
+            goarch: arm64 # 适用于 Surface Pro X 等
 
           # --- Linux (服务器) ---
           - goos: linux
@@ -29,44 +32,44 @@ jobs:
 
           # --- Android (手机终端) ---
           - goos: android
-            goarch: arm64  # 这是你最需要的，用于 data/local/tmp 运行
+            goarch: arm64 # 这是你最需要的，用于 data/local/tmp 运行
 
           # --- macOS ---
           - goos: darwin
             goarch: amd64
           - goos: darwin
-            goarch: arm64  # M1/M2/M3 芯片
+            goarch: arm64 # M1/M2/M3 芯片
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.24.4'
-        cache: true
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.4"
+          cache: true
 
-    - name: Build Binary
-      run: |
-        mkdir -p release
-        BINARY_NAME=cf-scanner
-        if [ "${{ matrix.goos }}" = "windows" ]; then
-          BINARY_NAME=cf-scanner.exe
-        fi
-        
-        # 获取当前的 Tag 名字（例如 v1.0.1）
-        TAG_NAME=${GITHUB_REF#refs/tags/}
-        
-        # 核心：使用 -X 注入变量内容。注意这里的 main.version 对应 main 包里的 version 变量
-        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-        go build -ldflags "-s -w -X 'github.com/gzjjjfree/cf-scanner/cmd.Version=${TAG_NAME}'" \
-        -o release/$BINARY_NAME-${{ matrix.goos }}-${{ matrix.goarch }} .
+      - name: Build Binary
+        run: |
+          mkdir -p release
+          BINARY_NAME=cf-scanner
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            BINARY_NAME=cf-scanner.exe
+          fi
 
-    - name: Create Release and Upload Assets
-      uses: softprops/action-gh-release@v1
-      with:
-        files: release/* # 将所有编译产物上传到 Release 页面
-        generate_release_notes: true # 自动根据提交日志生成版本说明
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 获取当前的 Tag 名字（例如 v1.0.1）
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+
+          # 核心：使用 -X 注入变量内容。注意这里的 main.version 对应 main 包里的 version 变量
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+          go build -ldflags "-s -w -X 'github.com/gzjjjfree/cf-scanner/cmd.Version=${TAG_NAME}'" \
+          -o release/$BINARY_NAME-${{ matrix.goos }}-${{ matrix.goarch }} .
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/* # 将所有编译产物上传到 Release 页面
+          generate_release_notes: true # 自动根据提交日志生成版本说明
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
