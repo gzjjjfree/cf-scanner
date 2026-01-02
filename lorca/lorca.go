@@ -11,7 +11,7 @@ import (
 	"github.com/zserge/lorca"
 )
 
-//go:embed frontend/dist/*
+//go:embed all:frontend/dist/*
 var fsa embed.FS
 
 var ui lorca.UI
