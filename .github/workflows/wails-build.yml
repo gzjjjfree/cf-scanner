@@ -50,19 +50,19 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build Frontend Manually
-        # 显式进入前端目录，安装并构建，这样我们可以完全控制权限
         run: |
+          # 1. 进入前端目录
           cd app/frontend
+          # 2. 安装并赋予 vite 及其依赖执行权限
           npm install
-          # 关键：赋予 vite 执行权限
-          chmod +x node_modules/.bin/vite
+          chmod -R +x node_modules/.bin/
+          # 3. 手动执行打包，生成 dist 文件夹
           npm run build
 
       - name: Build Wails App
-        # 使用 -skipfrontend 参数
-        # 既然我们上面已经 build 好了，Wails 只需要负责 Go 编译和资源嵌入
         run: |
-          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -skipfrontend
+          # 关键点：使用 -sf 标志跳过前端步骤
+          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -sf
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
