@@ -55,10 +55,12 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build Frontend Manually
+        # 核心修复：强制使用 bash 运行，这样你的 if 语句在 Windows 上也能跑通
+        shell: bash 
         run: |
           cd app/frontend
           npm install
-          # 仅在非 Windows 环境修复权限
+          # 现在的语法在 Windows/Linux/macOS 下都能被 Bash 正确解析了
           if [ "${{ matrix.os }}" != "windows-latest" ]; then
             chmod -R +x node_modules/.bin/
           fi
