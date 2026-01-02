@@ -49,9 +49,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.platform }}" == "windows" ]; then
-            go build -ldflags "-s -w -H=windowsgui" -o ${{ matrix.artifact_name }} .
+            go build -ldflags "-s -w -H=windowsgui -X 'main.isLorca=true'" -ldflags -o ${{ matrix.artifact_name }} .
           else
-            go build -ldflags "-s -w" -o ${{ matrix.artifact_name }} .
+            go build -ldflags "-s -w -X 'main.isLorca=true'" -o ${{ matrix.artifact_name }} .
           fi
 
       # 4. 上传产物

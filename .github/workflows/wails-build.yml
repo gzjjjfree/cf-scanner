@@ -9,6 +9,9 @@ on:
       version:
         description: "发布版本号 (例如 1.0.1)"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
