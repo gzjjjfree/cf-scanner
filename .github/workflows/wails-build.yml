@@ -3,13 +3,13 @@ name: Wails Build & Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: '发布版本号 (例如 1.0.1)'
+        description: "发布版本号 (例如 1.0.1)"
         required: false
-        default: 'manual-build'
+        default: "manual-build"
 
 jobs:
   build:
@@ -32,7 +32,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.24.4'
+          go-version: "1.24.4"
 
       - name: Setup Node
         uses: actions/setup-node@v3
