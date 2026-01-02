@@ -44,7 +44,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
+          # 安装 GTK 和 WebKit2Gtk 4.1
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config
+
+          # 【核心步骤】创建软连接，欺骗 Wails，让它以为 4.1 就是 4.0
+          # 这是解决新版 Ubuntu 编译老版 Wails 项目的标准 Trick
+          sudo ln -s /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
