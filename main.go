@@ -8,15 +8,24 @@ import (
 
 	"github.com/gzjjjfree/cf-scanner/app"
 	"github.com/gzjjjfree/cf-scanner/cmd"
+	"github.com/gzjjjfree/cf-scanner/lorca"
 )
 
-var isWails = "false"
+var (
+	isWails = "false"
+	isLorca = "false"
+)
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if isWails == "true" {
 		app.RunWailsMode()
+		return
+	}
+
+	if isLorca == "true" {
+		lorca.RunLorcaMode()
 		return
 	}
 

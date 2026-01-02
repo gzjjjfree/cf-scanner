@@ -104,11 +104,9 @@ func runScannerLogic(appCtx context.Context, conf scanner.ScanConfig) {
 	BridgeLogger.WriteLog(fmt.Sprintf("[过滤]: 延迟 <%dms, 最低下载速度 >%v, 保留的数量 %v \n\n", conf.MinLatency, conf.MinSpeed, conf.FinalCount))
 
 	ipGroups, actualTaskCount := utils.ParseIP(conf.FilePath, conf.TestNum, BridgeLogger)
-	//utils.ParseIP(conf.FilePath, conf.TestNum, BridgeLogger)
 
 	finalResults := scanner.RunScanPool(appCtx, ipGroups, conf.NThreads, conf.SniDomain, int64(conf.MinLatency), actualTaskCount, BridgeLogger)
 
-	//scanner.RunScanPool(appCtx, ipGroups, conf.NThreads, conf.SniDomain, int64(conf.MinLatency), actualTaskCount, BridgeLogger)
 	BridgeLogger.WriteLog(fmt.Sprintf("\n--- 优选结果 Top %v 最后结果 %v---\n", conf.FinalCount*2, len(finalResults)))
 	for i := 0; i < len(finalResults) && i < conf.FinalCount*2; i++ {
 		BridgeLogger.WriteLog(fmt.Sprintf("排名 %d: [%s], 延迟: %v\n", i+1, finalResults[i].IP, finalResults[i].Latency))

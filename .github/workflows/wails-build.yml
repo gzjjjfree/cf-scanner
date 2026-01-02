@@ -76,7 +76,7 @@ jobs:
         with:
           # 核心修复：手动将斜杠替换为横杠，或者直接写死
           # 方式 1：手动根据平台命名（最稳妥）
-          name: cf-scanner-${{ matrix.os }}-${{ strategy.job-index }}
+          name: cf-scanner-wails-${{ matrix.os }}-${{ strategy.job-index }}
           # 方式 2：如果你想保留架构信息，手动写：
           # name: cf-scanner-windows-amd64
 

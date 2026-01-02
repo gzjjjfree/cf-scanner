@@ -75,7 +75,7 @@ var (
 // StartScan 模拟你的 cf-scanner 扫描过程
 func (a *SimpleApp) StartScan(cmd WSMessage) {
 	a.mu.Lock()
-	// 1. 如果已经在运行，先停止旧的（可选，视逻辑而定）
+	// 如果已经在运行，先停止旧的（可选，视逻辑而定）
 	if a.cancel != nil {
 		a.cancel()
 	}
@@ -88,7 +88,7 @@ func (a *SimpleApp) StartScan(cmd WSMessage) {
 
 	switch cmd.Type {
 	case "start":
-		// 1. 首先断言 cmd.Data 是一个 map
+		// 首先断言 cmd.Data 是一个 map
 		rawParams, ok := cmd.Data.(map[string]any)
 		if !ok {
 			content := WSMessage{
@@ -100,7 +100,7 @@ func (a *SimpleApp) StartScan(cmd WSMessage) {
 			broadcastStatus(appCtx, false)
 		}
 
-		// 2. 创建一个真正的 map[string]string
+		// 创建一个真正的 map[string]string
 		cleanParams := make(map[string]string)
 		for k, v := range rawParams {
 			// 将 any 转换为 string（处理字符串、数字、布尔等）
@@ -110,7 +110,7 @@ func (a *SimpleApp) StartScan(cmd WSMessage) {
 		go func() {
 			startScanWorkflow(appCtx, cleanParams)
 
-			// 4. 任务彻底结束后，清理 cancel 防止内存泄漏
+			// 任务彻底结束后，清理 cancel 防止内存泄漏
 			a.mu.Lock()
 			a.cancel = nil
 			a.mu.Unlock()
