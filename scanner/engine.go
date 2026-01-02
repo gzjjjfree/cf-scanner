@@ -128,8 +128,8 @@ func TestSpeed(parentCtx context.Context, ip string, domain string, timeout time
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	// 使用 Context 实现“采样时间一到立即切断”, 记得把 parentCtx 传进去
-	ctx, CancelScan := context.WithTimeout(parentCtx, timeout)
-	defer CancelScan()
+	ctx, cancelScan := context.WithTimeout(parentCtx, timeout)
+	defer cancelScan()
 	req = req.WithContext(ctx)
 
 	resp, err := client.Do(req)

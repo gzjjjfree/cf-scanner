@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CF-Scanner 控制台</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 15px;
+        background: #f4f4f9;
+      }
+      .card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      #progress {
+        width: 0%;
+        height: 100%;
+        background: #4caf50;
+        transition: width 0.3s;
+      }
+      .log-box {
+        background: #1e1e1e;
+        color: #adadad;
+        padding: 10px;
+        border-radius: 5px;
+        font-family: monospace;
+        height: 550px;
+        overflow-y: auto;
+        margin-bottom: 20px;
+        font-size: 20px;
+        white-space: pre-wrap;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background: #f8f8f8;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #ccc;
+      }
+      .btn-stop {
+        background-color: #ff4d4f;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .btn-stop:hover {
+        background-color: #ff7875;
+      }
+      .btn-stop:disabled {
+        background-color: #f5f5f5;
+        color: #00000040;
+        cursor: not-allowed;
+      }
+      #logbox {
+        white-space: pre-wrap; /* 保留空格和换行 */
+        overflow-anchor: none; /* 关键：防止 Chrome 自动调整滚动位置导致的抖动 */
+        word-break: break-all; /* 防止长字符串撑开容器 */
+        line-height: 1.5; /* 固定行高 */
+        font-family: monospace; /* 使用等宽字体，进度条对齐更准 */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Cloudflare 优选 IP 扫描器</h2>
+
+      <div class="config-group" style="margin-bottom: 15px">
+        <label
+          >线程数:
+          <input type="number" id="nthreads" value="100" style="width: 40px"
+        /></label>
+        <label style="margin-left: 10px"
+          >每段 IP 抽样数:
+          <input type="number" id="test_num" value="500" style="width: 40px"
+        /></label>
+        <label style="margin-left: 10px"
+          >最大允许延时:
+          <input type="number" id="latency" value="200" style="width: 40px"
+        /></label>
+        <label style="margin-left: 10px"
+          >最低下载速度 (MB/s):
+          <input type="number" id="speed" value="5" style="width: 40px"
+        /></label>
+        <label style="margin-left: 10px"
+          >最终结果数:
+          <input type="number" id="count" value="100" style="width: 40px"
+        /></label>
+      </div>
+
+      <div class="status-bar">
+        <div id="statusText">状态: 待机</div>
+        <button type="button" id="startBtn">开始扫描</button>
+        <button id="stopBtn" onclick="stopScan()" class="btn-stop" disabled>
+          停止扫描
+        </button>
+        <button id="clearBtn" onclick="Logmsg.clear()">清空日志</button>
+      </div>
+
+      <h4>实时日志</h4>
+      <div class="log-box" id="logBox">等待启动...</div>
+    </div>
+
+    <script>
+      /**
+       * LogHandler - 处理实时日志与进度条渲染
+       */
+      class LogHandler {
+        constructor(containerId, maxLines = 1000) {
+          this.container = document.getElementById(containerId);
+          this.maxLines = maxLines;
+          this.logBuffer = []; // 存储每一行日志
+        }
+
+        // 处理 WebSocket 传来的 JSON 对象
+        handleWSMessage(jsonStr) {
+          try {
+            const msg = JSON.parse(jsonStr);
+            if (msg.type === "log") {
+              this.processLog(msg.data);
+            } else if (msg.type === "status") {
+              this.updateUIStatus(msg.data.is_scanning);
+            }
+          } catch (e) {
+            // 如果不是 JSON，兼容处理成纯文本日志
+            this.processLog(jsonStr);
+          }
+        }
+
+        /**
+         * 处理收到的原始消息
+         * @param {string} msg - 后端传来的原始字符串 (包含 \r 或 \n)
+         */
+        processLog(msg) {
+          if (!msg) return;
+          // 删除字符串末尾的 \n
+          const cleanLine = msg.replace(/\n$/, "");
+          if (
+            cleanLine.includes("\r") &&
+            this.logBuffer.length > 0 &&
+            this.logBuffer[this.logBuffer.length - 1].includes("\r")
+          ) {
+            this.updateLastLine(cleanLine);
+          } else {
+            if (
+              this.logBuffer.length > 0 &&
+              ((this.logBuffer[this.logBuffer.length - 1].includes("秒") &&
+                !this.logBuffer[this.logBuffer.length - 1].includes("MB")) ||
+                this.logBuffer[this.logBuffer.length - 1].includes("context"))
+            ) {
+              this.logBuffer[this.logBuffer.length - 1] += cleanLine;
+              console.log(": " + this.logBuffer[this.logBuffer.length - 1]);
+              this.render();
+              return;
+            }
+            this.appendLine(cleanLine);
+          }
+
+          this.render();
+        }
+
+        // 替换最后一行内容（用于展示进度条）
+        updateLastLine(content) {
+          if (this.logBuffer.length === 0) {
+            this.logBuffer.push(content);
+          } else {
+            if (this.logBuffer[this.logBuffer.length - 1].includes("速")) {
+              this.logBuffer.push(content);
+              return;
+            }
+            this.logBuffer[this.logBuffer.length - 1] = content;
+          }
+        }
+
+        // 追加新行
+        appendLine(content) {
+          this.logBuffer.push(content);
+          // 限制缓冲区大小，防止内存溢出
+          if (this.logBuffer.length > this.maxLines) {
+            this.logBuffer.shift();
+          }
+        }
+
+        // 更新界面按钮状态
+        updateUIStatus(isScanning) {
+          const startBtn = document.getElementById("startBtn");
+          const stopBtn = document.getElementById("stopBtn");
+
+          if (isScanning) {
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+          } else {
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            this.processLog("\n✨ 扫描任务已结束。\n");
+          }
+        }
+
+        // 渲染到 DOM
+        render() {
+          // 使用 textContent 防止 XSS 攻击，并保持原始格式
+          this.container.textContent = this.logBuffer.join("\n");
+          // 自动滚动到底部
+          this.container.scrollTop = this.container.scrollHeight;
+        }
+
+        // 清空日志
+        clear() {
+          this.logBuffer = [];
+          this.container.textContent = "";
+        }
+      }
+
+      const startBtn = document.getElementById("startBtn");
+      const statusText = document.getElementById("statusText");
+      const logBox = document.getElementById("logBox");
+      const Logmsg = new LogHandler("logBox");
+
+      let socket;
+
+      function connectWebSocket() {
+        // 根据当前页面协议判断是 ws 还是 wss
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+          Logmsg.processLog("\n    WebSocket 已连接\n");
+          Logmsg.processLog("🟢 已连接到后端实时日志系统...\n");
+        };
+
+        // WebSocket 接收逻辑
+        socket.onmessage = (event) => {
+          Logmsg.handleWSMessage(event.data);
+        };
+
+        socket.onclose = function () {
+          console.log("WebSocket 已断开，正在尝试重连...\n");
+          setTimeout(connectWebSocket, 2000); // 自动重连
+        };
+
+        socket.onerror = (error) => {
+          console.error("WebSocket 错误:", error);
+        };
+      }
+
+      // 发送开始指令
+      startBtn.onclick = function startScan() {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+          alert("连接未就绪，请稍后");
+          return;
+        }
+
+        Logmsg.clear();
+
+        const command = {
+          Type: "start",
+          Data: {
+            min_speed: document.getElementById("speed").value || 5,
+            test_num: document.getElementById("test_num").value || 10,
+            min_latency: document.getElementById("latency").value || 200,
+            final_count: document.getElementById("count").value || 500,
+            nthreads: document.getElementById("nthreads").value || 10,
+          },
+        };
+
+        socket.send(JSON.stringify(command));
+      };
+
+      // 发送停止指令
+      function stopScan() {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+        const command = {
+          Type: "stop",
+        };
+
+        socket.send(JSON.stringify(command));
+      }
+
+      // 前端定时心跳
+      setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ action: "ping" }));
+        }
+      }, 30000);
+
+      // 页面加载完成后启动
+      document.addEventListener("DOMContentLoaded", connectWebSocket);
+    </script>
+  </body>
+</html>

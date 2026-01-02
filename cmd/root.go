@@ -36,7 +36,7 @@ var rootCmd = &cobra.Command{
 
 			// 给服务器一点启动时间（比如 500ms），然后打开浏览器
 			time.Sleep(time.Millisecond * 500)
-			gui.OpenBrowser("http://127.0.0.1:8080")
+			gui.OpenBrowser("http://127.0.0.1:8090")
 			// 保持主进程不退出
 			select {}
 		}

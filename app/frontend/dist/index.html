@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      #log-container {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 15px;
+        height: 300px;
+        overflow-y: auto;
+        font-family: "Consolas", monospace;
+        border-radius: 8px;
+        text-align: left;
+        margin: 20px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .log-entry {
+        border-bottom: 1px solid #333;
+        margin-bottom: 4px;
+      }
+      button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .btn-stop {
+        background-color: #ff4d4f;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .btn-stop:hover {
+        background-color: #ff7875;
+      }
+      .btn-stop:disabled {
+        background-color: #f5f5f5;
+        color: #00000040;
+        cursor: not-allowed;
+      }
+      .status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        margin-top: 20px;
+      }
+      #log-container {
+        /* 核心属性：保留换行符和空格，且允许自动换行 */
+        white-space: pre-wrap;
+
+        /* 可选：如果你希望像代码编辑器那样，不自动换行而显示横向滚动条 */
+        /* white-space: pre; */
+
+        /* 建议：确保使用等宽字体，更符合日志风格 */
+        font-family: monospace;
+
+        /* 允许长单词或 URL 换行 */
+        word-wrap: break-word;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 10px;
+        height: 500px;
+        overflow-y: auto;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index.8a6faac1.js"></script>
+  </head>
+  <body>
+    <h2>CF-Scanner 实时控制台</h2>
+
+    <div id="controls">
+      <label
+        >线程数:
+        <input type="number" id="nthreads" value="100" style="width: 40px"
+      /></label>
+      <label style="margin-left: 10px"
+        >每段 IP 抽样数:
+        <input type="number" id="test_num" value="500" style="width: 40px"
+      /></label>
+      <label style="margin-left: 10px"
+        >最大允许延时:
+        <input type="number" id="latency" value="200" style="width: 40px"
+      /></label>
+      <label style="margin-left: 10px"
+        >最低下载速度 (MB/s):
+        <input type="number" id="speed" value="5" style="width: 40px"
+      /></label>
+      <label style="margin-left: 10px"
+        >最终结果数:
+        <input type="number" id="count" value="100" style="width: 40px"
+      /></label>
+    </div>
+
+    <div class="status-bar">
+      <div id="statusText">状态: 待机</div>
+      <button id="startBtn" onclick="doScan()">开始扫描</button>
+      <button id="stopBtn" onclick="stopScan()" class="btn-stop" disabled>
+        停止扫描
+      </button>
+      <button id="clearBtn" onclick="Logmsg.clear()">清空日志</button>
+    </div>
+
+    <div id="log-container"></div>
+
+    
+  </body>
+</html>

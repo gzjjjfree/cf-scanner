@@ -19,7 +19,7 @@ import (
 
 // 使用 go:embed 将前端文件打包进二进制
 //
-//go:embed frontend/dist
+//go:embed web_frontend/dist
 var staticFiles embed.FS
 
 // ScanStatus 定义了要返回给前端的 JSON 结构
@@ -66,6 +66,7 @@ func WriteLog(msg string) {
 // 定义一个空的结构体，作为接口的载体
 type WebLogger struct {
 	Theme progressbar.Theme
+	Ctx context.Context
 }
 
 // 让 WebLogger 实现 WriteLog 方法
@@ -82,6 +83,7 @@ func (w WebLogger) GetColorCodes() bool {
 }
 
 // 方便外部调用的实例, 传参给外部让外部可以使用本包的方法
+var WebCtx context.Context
 var BridgeLogger = WebLogger{
 	Theme: progressbar.Theme{
 		Saucer:        "=",
@@ -90,6 +92,7 @@ var BridgeLogger = WebLogger{
 		BarStart:      "[",
 		BarEnd:        "]",
 	},
+	Ctx: WebCtx,
 }
 
 func Makeweb() {
@@ -97,11 +100,11 @@ func Makeweb() {
 	registerHandlers()
 
 	// 注册静态资源
-	distFS, _ := fs.Sub(staticFiles, "frontend/dist")
+	distFS, _ := fs.Sub(staticFiles, "web_frontend/dist")
 	http.Handle("/", http.FileServer(http.FS(distFS)))
 
 	fmt.Println("API 接口已就绪: /api/status, /api/start")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":8090", nil)
 }
 
 func OpenBrowser(url string) {

@@ -98,7 +98,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// 启动流程
+// 启动前处理参数
 func startScanWorkflow(params map[string]string) {
 	statusMutex.Lock()
 	if status.IsRunning {

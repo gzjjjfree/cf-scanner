@@ -6,11 +6,19 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/gzjjjfree/cf-scanner/app"
 	"github.com/gzjjjfree/cf-scanner/cmd"
 )
 
+var isWails = "false"
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	if isWails == "true" {
+		app.RunWailsMode()
+		return
+	}
 
 	if len(os.Args) == 1 {
 		fmt.Println("\n[提示] 终端已就绪。")
