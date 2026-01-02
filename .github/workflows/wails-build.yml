@@ -49,6 +49,13 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      - name: Fix Vite Permissions (macOS/Linux)
+        # 只有在非 Windows 环境下才需要修复权限
+        if: matrix.os != 'windows-latest'
+        run: |
+          # 确保前端 bin 目录下的所有文件都有执行权限
+          chmod +x frontend/node_modules/.bin/* || true
+
       - name: Build Wails App
         # 核心：将 isWails 设为字符串 "true"
         run: |
