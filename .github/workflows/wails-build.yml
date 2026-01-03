@@ -66,11 +66,13 @@ jobs:
             chmod -R +x node_modules/.bin/
           fi
           npm run build
+          cd ..
+          cd ..
 
       - name: Build Wails App
         # 使用 -s 标志明确跳过前端构建
         run: |
-          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -s
+          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

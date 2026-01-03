@@ -26,8 +26,8 @@ func ParseIP(ipFile string, testCount int, l Logger) ([][]string, int) {
 	// 读取并解析 IP 段文件
 	cidrList, isJSONInput, err := ReadLines(ipFile)
 	if err != nil {
-		downloadIPList("ip.txt")
 		l.WriteLog(fmt.Sprintln("读取 IP 文件出错, 下载 IP 文件重新读取！"))
+		downloadIPList("ip.txt")		
 		cidrList, isJSONInput, err = ReadLines("ip.txt")
 		if err != nil {
 			l.WriteLog(fmt.Sprintf("无法读取 IP 文件: %v\n请把合适的 IP 文件放在根目录下\nhttps://www.cloudflare.com/ips-v4", err))
