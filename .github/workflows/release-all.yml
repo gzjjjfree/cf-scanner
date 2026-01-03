@@ -104,7 +104,6 @@ jobs:
           name: wails-${{ matrix.tag }}
           path: 
             wails/build/bin/*
-            cf-scanner-wailsUI-*
 
   # --- 任务 4: 汇总并正式发布 ---
   publish:
