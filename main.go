@@ -7,27 +7,10 @@ import (
 	"runtime"
 
 	"github.com/gzjjjfree/cf-scanner/cmd"
-	"github.com/gzjjjfree/cf-scanner/lorca"
-	"github.com/gzjjjfree/cf-scanner/wails"
-)
-
-var (
-	isWails = "false"
-	isLorca = "false"
 )
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	if isWails == "true" {
-		wails.RunWailsMode()
-		return
-	}
-
-	if isLorca == "true" {
-		lorca.RunLorcaMode()
-		return
-	}
 
 	if len(os.Args) == 1 {
 		fmt.Println("\n[提示] 终端已就绪。")

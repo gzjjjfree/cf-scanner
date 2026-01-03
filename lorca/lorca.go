@@ -1,4 +1,4 @@
-package lorca
+package main
 
 import (
 	"embed"
@@ -16,7 +16,7 @@ var fsa embed.FS
 
 var ui lorca.UI
 
-func RunLorcaMode() {
+func main() {
 	// 1. 检查 Chrome 是否安装，如果没有，提示用户下载
 	if runtime.GOOS == "windows" {
 		// Lorca 在 Windows 上会自动寻找 Chrome/Edge

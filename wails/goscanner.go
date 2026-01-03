@@ -1,4 +1,4 @@
-package wails
+package main
 
 import (
 	"context"

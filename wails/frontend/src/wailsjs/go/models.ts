@@ -1,35 +1,4 @@
-export namespace progressbar {
-	
-	export class Theme {
-	    Saucer: string;
-	    AltSaucerHead: string;
-	    SaucerHead: string;
-	    SaucerPadding: string;
-	    BarStart: string;
-	    BarEnd: string;
-	    BarStartFilled: string;
-	    BarEndFilled: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new Theme(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.Saucer = source["Saucer"];
-	        this.AltSaucerHead = source["AltSaucerHead"];
-	        this.SaucerHead = source["SaucerHead"];
-	        this.SaucerPadding = source["SaucerPadding"];
-	        this.BarStart = source["BarStart"];
-	        this.BarEnd = source["BarEnd"];
-	        this.BarStartFilled = source["BarStartFilled"];
-	        this.BarEndFilled = source["BarEndFilled"];
-	    }
-	}
-
-}
-
-export namespace wails {
+export namespace main {
 	
 	export class WSMessage {
 	    type: string;
@@ -76,6 +45,37 @@ export namespace wails {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace progressbar {
+	
+	export class Theme {
+	    Saucer: string;
+	    AltSaucerHead: string;
+	    SaucerHead: string;
+	    SaucerPadding: string;
+	    BarStart: string;
+	    BarEnd: string;
+	    BarStartFilled: string;
+	    BarEndFilled: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Theme(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Saucer = source["Saucer"];
+	        this.AltSaucerHead = source["AltSaucerHead"];
+	        this.SaucerHead = source["SaucerHead"];
+	        this.SaucerPadding = source["SaucerPadding"];
+	        this.BarStart = source["BarStart"];
+	        this.BarEnd = source["BarEnd"];
+	        this.BarStartFilled = source["BarStartFilled"];
+	        this.BarEndFilled = source["BarEndFilled"];
+	    }
 	}
 
 }

@@ -1,4 +1,4 @@
-package lorca
+package main
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package wails
+package main
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-func RunWailsMode() {
+func main() {
 	// 创建一个简单的 App 结构体
 	wailsapp := NewApp()
 
