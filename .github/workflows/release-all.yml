@@ -17,14 +17,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - {goos: windows, goarch: amd64, ext: .exe}
-          - {goos: linux, goarch: amd64, ext: ""}
-          - {goos: android, goarch: arm64, ext: ""}
-          - {goos: darwin, goarch: arm64, ext: ""}
+          - { goos: windows, goarch: amd64, ext: .exe }
+          - { goos: linux, goarch: amd64, ext: "" }
+          - { goos: android, goarch: arm64, ext: "" }
+          - { goos: darwin, goarch: arm64, ext: "" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: "1.24.4", cache: true}
+        with: { go-version: "1.24.4", cache: true }
       - name: Build
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
@@ -43,13 +43,17 @@ jobs:
     strategy:
       matrix:
         include:
-          - {os: windows-latest, platform: windows, name: cf-scanner-lorca-win.exe}
-          - {os: macos-latest, platform: macos, name: cf-scanner-lorca-mac}
-          - {os: ubuntu-latest, platform: linux, name: cf-scanner-lorca-linux}
+          - {
+              os: windows-latest,
+              platform: windows,
+              name: cf-scanner-lorca-win.exe,
+            }
+          - { os: macos-latest, platform: macos, name: cf-scanner-lorca-mac }
+          - { os: ubuntu-latest, platform: linux, name: cf-scanner-lorca-linux }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: "1.24.4"}
+        with: { go-version: "1.24.4" }
       - name: Build
         shell: bash
         run: |
@@ -68,15 +72,15 @@ jobs:
     strategy:
       matrix:
         include:
-          - {os: windows-latest, platform: windows/amd64, tag: win}
-          - {os: ubuntu-latest, platform: linux/amd64, tag: linux}
-          - {os: macos-latest, platform: darwin/universal, tag: mac}
+          - { os: windows-latest, platform: windows/amd64, tag: win }
+          - { os: ubuntu-latest, platform: linux/amd64, tag: linux }
+          - { os: macos-latest, platform: darwin/universal, tag: mac }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: "1.24.4"}
+        with: { go-version: "1.24.4" }
       - uses: actions/setup-node@v4
-        with: {node-version: 18}
+        with: { node-version: 18 }
       - name: Linux Deps
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -93,11 +97,12 @@ jobs:
             chmod -R +x node_modules/.bin/
           fi
           npm run build
+          cd ../..
           wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -o cf-scanner-wailsUI-${{ matrix.tag }}
       - uses: actions/upload-artifact@v4
         with:
           name: wails-${{ matrix.tag }}
-          path: build/bin/*
+          path: wails/build/bin/*
 
   # --- 任务 4: 汇总并正式发布 ---
   publish:
