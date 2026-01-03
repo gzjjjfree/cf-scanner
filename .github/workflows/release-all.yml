@@ -1,0 +1,116 @@
+name: CF-Scanner Multi-Version Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # --- 任务 1: 构建 命令行 (CLI) 版本 ---
+  build-cli:
+    name: Build CLI
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - {goos: windows, goarch: amd64, ext: .exe}
+          - {goos: linux, goarch: amd64, ext: ""}
+          - {goos: android, goarch: arm64, ext: ""}
+          - {goos: darwin, goarch: arm64, ext: ""}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: "1.24.4", cache: true}
+      - name: Build
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+          go build -ldflags "-s -w -X 'github.com/gzjjjfree/cf-scanner/cmd.Version=${TAG_NAME}'" \
+          -o release/cf-scanner-cli-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: release/*
+
+  # --- 任务 2: 构建 Lorca (GUI) 版本 ---
+  build-lorca:
+    name: Build Lorca
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - {os: windows-latest, platform: windows, name: cf-scanner-lorca-win.exe}
+          - {os: macos-latest, platform: macos, name: cf-scanner-lorca-mac}
+          - {os: ubuntu-latest, platform: linux, name: cf-scanner-lorca-linux}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: "1.24.4"}
+      - name: Build
+        shell: bash
+        run: |
+          LDFLAGS="-s -w -X 'main.isLorca=true'"
+          if [ "${{ matrix.platform }}" == "windows" ]; then LDFLAGS="$LDFLAGS -H=windowsgui"; fi
+          go build -ldflags "$LDFLAGS" -o ${{ matrix.name }} .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lorca-${{ matrix.platform }}
+          path: ${{ matrix.name }}
+
+  # --- 任务 3: 构建 Wails (GUI) 版本 ---
+  build-wails:
+    name: Build Wails
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - {os: windows-latest, platform: windows/amd64, tag: win}
+          - {os: ubuntu-latest, platform: linux/amd64, tag: linux}
+          - {os: macos-latest, platform: darwin/universal, tag: mac}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: "1.24.4"}
+      - uses: actions/setup-node@v4
+        with: {node-version: 18}
+      - name: Linux Deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config
+          sudo ln -s /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: Build
+        shell: bash
+        run: |
+          cd wails/frontend && npm install && npm run build && cd ../..
+          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -o cf-scanner-wails-${{ matrix.tag }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wails-${{ matrix.tag }}
+          path: build/bin/*
+
+  # --- 任务 4: 汇总并正式发布 ---
+  publish:
+    name: Finalize Release
+    needs: [build-cli, build-lorca, build-wails] # 确保前三个任务全部做完
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-files
+          merge-multiple: true # 将所有子任务的文件合并到一个目录
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./all-files/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
