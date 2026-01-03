@@ -87,7 +87,13 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          cd wails/frontend && npm install && npm run build
+          cd wails/frontend
+          npm install
+          if [ "${{ matrix.os }}" != "windows-latest" ]; then
+            chmod -R +x node_modules/.bin/
+          fi
+          npm run build
+          cd ../..
           wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -o cf-scanner-wails-${{ matrix.tag }}
       - uses: actions/upload-artifact@v4
         with:
