@@ -28,9 +28,10 @@ jobs:
       - name: Build
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
+          OUTPUT_NAME="cf-scanner-cli-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
           go build -ldflags "-s -w -X 'github.com/gzjjjfree/cf-scanner/cmd.Version=${TAG_NAME}'" \
-          -o release/cf-scanner${{ matrix.ext }} .
+          -o release/$OUTPUT_NAME .
       - uses: actions/upload-artifact@v4
         with:
           name: cf-scanner-cli-${{ matrix.goos }}-${{ matrix.goarch }}
@@ -101,7 +102,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: wails-${{ matrix.tag }}
-          path: wails/build/bin/*
+          path: 
+            wails/build/bin/*
+            cf-scanner-wailsUI-*
 
   # --- 任务 4: 汇总并正式发布 ---
   publish:
