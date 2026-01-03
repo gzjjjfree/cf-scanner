@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -24,8 +26,13 @@ func ParseIP(ipFile string, testCount int, l Logger) ([][]string, int) {
 	// 读取并解析 IP 段文件
 	cidrList, isJSONInput, err := ReadLines(ipFile)
 	if err != nil {
-		l.WriteLog(fmt.Sprintf("无法读取 IP 文件: %v\n请把合适的 IP 文件放在根目录下\nhttps://www.cloudflare.com/ips-v4", err))
-		return nil, 0
+		downloadIPList("ip.txt")
+		l.WriteLog(fmt.Sprintln("读取 IP 文件出错, 下载 IP 文件重新读取！"))
+		cidrList, isJSONInput, err = ReadLines("ip.txt")
+		if err != nil {
+			l.WriteLog(fmt.Sprintf("无法读取 IP 文件: %v\n请把合适的 IP 文件放在根目录下\nhttps://www.cloudflare.com/ips-v4", err))
+			return nil, 0
+		}
 	}
 
 	// 每段分别取样
@@ -163,4 +170,34 @@ func pickSamples(ips []string, testCount int) []string {
 	}
 
 	return sampled
+}
+
+// 从 CF 官网下载 IP 列表并保存
+func downloadIPList(filename string) error {
+	url := "https://www.cloudflare.com/ips-v4"
+
+	// 1. 发起请求
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("网络请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("服务器返回状态码异常: %d", resp.StatusCode)
+	}
+
+	// 2. 读取内容
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("读取响应体失败: %v", err)
+	}
+
+	// 3. 写入文件
+	err = os.WriteFile(filename, body, 0644)
+	if err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+
+	return nil
 }
