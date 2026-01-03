@@ -127,6 +127,10 @@ func runScannerLogic(ctx context.Context, conf scanner.ScanConfig) {
 
 	// 扫描过程
 	ipGroups, actualTaskCount := utils.ParseIP(conf.FilePath, conf.TestNum, BridgeLogger)
+	if actualTaskCount <= 0 {
+		WriteLog(fmt.Sprintln("读取 IP 文件出错，结束扫描！"))
+		return
+	}
 
 	finalResults := scanner.RunScanPool(ctx, ipGroups, conf.NThreads, conf.SniDomain, int64(conf.MinLatency), actualTaskCount, BridgeLogger)
 

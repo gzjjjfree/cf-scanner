@@ -18,13 +18,13 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
-            artifact_name: cf-scanner-lorca-windows.exe
+            artifact_name: cf-scanner-lorcaUI-windows.exe
           - os: macos-latest
             platform: macos
-            artifact_name: cf-scanner-lorca-macos
+            artifact_name: cf-scanner-lorcaUI-macos
           - os: ubuntu-latest
             platform: linux
-            artifact_name: cf-scanner-lorca-linux
+            artifact_name: cf-scanner-lorcaUI-linux
 
     runs-on: ${{ matrix.os }}
 

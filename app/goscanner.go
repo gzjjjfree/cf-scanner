@@ -104,6 +104,10 @@ func runScannerLogic(appCtx context.Context, conf scanner.ScanConfig) {
 	BridgeLogger.WriteLog(fmt.Sprintf("[过滤]: 延迟 <%dms, 最低下载速度 >%v, 保留的数量 %v \n\n", conf.MinLatency, conf.MinSpeed, conf.FinalCount))
 
 	ipGroups, actualTaskCount := utils.ParseIP(conf.FilePath, conf.TestNum, BridgeLogger)
+	if actualTaskCount <= 0 {
+		BridgeLogger.WriteLog(fmt.Sprintln("读取 IP 文件出错，结束扫描！"))
+		return
+	}
 
 	finalResults := scanner.RunScanPool(appCtx, ipGroups, conf.NThreads, conf.SniDomain, int64(conf.MinLatency), actualTaskCount, BridgeLogger)
 

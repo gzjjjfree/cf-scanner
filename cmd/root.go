@@ -63,6 +63,10 @@ var rootCmd = &cobra.Command{
 
 		// 对 IP 段进行随机抽样
 		ipGroups, actualTaskCount := utils.ParseIP(cmdConfig.FilePath, cmdConfig.TestNum, BridgeLogger)
+		if actualTaskCount <= 0 {
+			fmt.Println("读取 IP 文件出错，结束扫描！")
+			return
+		}
 
 		// 启动一个后台协程专门盯着键盘
 		go scanner.ListenForStopKey(ctx, scanner.CancelScan)
