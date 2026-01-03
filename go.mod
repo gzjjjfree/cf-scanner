@@ -7,7 +7,10 @@ require (
 	github.com/spf13/cobra v1.10.2
 )
 
-require github.com/gorilla/websocket v1.5.3
+require (
+	github.com/gorilla/websocket v1.5.3
+	github.com/zserge/lorca v0.1.10
+)
 
 require (
 	github.com/bep/debounce v1.2.1 // indirect
@@ -31,7 +34,6 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
-	github.com/zserge/lorca v0.1.10 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/text v0.22.0 // indirect

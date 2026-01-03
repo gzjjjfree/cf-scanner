@@ -48,7 +48,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if !cmdConfig.ShouldRun {
-			// 如果用户没传 -run，则打印帮助并退出
+			// 如果用户没传 --run，则打印帮助并退出
 			cmd.Help()
 			return
 		}

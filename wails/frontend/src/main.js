@@ -1,8 +1,8 @@
 import './style.css';
-import './app.css';
+import './wials.css';
 
 import logo from './assets/images/logo-universal.png';
-import {Greet} from '../wailsjs/go/main/App';
+import {Greet} from '../wailsjs/go/main/wails';
 
 document.querySelector('#app').innerHTML = `
     <img id="logo" class="logo">

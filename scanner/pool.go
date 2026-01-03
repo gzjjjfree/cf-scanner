@@ -44,6 +44,7 @@ func RunScanPool(ctx context.Context, ipGroups [][]string, workerCount int, doma
 		progressbar.OptionSetTheme(l.GetTheme()),
 	)
 
+	defer bar.Close()
 	// 启动工人
 	for range workerCount {
 		wg.Add(1)

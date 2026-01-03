@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/gzjjjfree/cf-scanner/app"
 	"github.com/gzjjjfree/cf-scanner/cmd"
 	"github.com/gzjjjfree/cf-scanner/lorca"
+	"github.com/gzjjjfree/cf-scanner/wails"
 )
 
 var (
@@ -20,7 +20,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if isWails == "true" {
-		app.RunWailsMode()
+		wails.RunWailsMode()
 		return
 	}
 
@@ -31,8 +31,8 @@ func main() {
 
 	if len(os.Args) == 1 {
 		fmt.Println("\n[提示] 终端已就绪。")
-		fmt.Println("请输入命令： cf-scanner.exe -run (开始默认扫描)")
-		fmt.Println("或者输入： cf-scanner.exe -run -t 100 (指定 100 线程扫描)\n")
+		fmt.Println("请输入命令： cf-scanner.exe --run (开始默认扫描)")
+		fmt.Print("或者输入： cf-scanner.exe --run -t 100 (指定 100 线程扫描)\n\n")
 
 		executable, _ := os.Executable()
 

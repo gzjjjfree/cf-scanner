@@ -1,8 +1,8 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "cf-scanner",
-  "outputfilename": "cf-scanner",
-  "frontend:dir": "app/frontend",
+  "name": "cf-scanner-wailsUI",
+  "outputfilename": "cf-scanner-wailsUI",
+  "frontend:dir": "wails/frontend",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
@@ -11,6 +11,7 @@
     "name": "Gzjjj",
     "email": "gzjjj1234@gmail.com"
   },
-  "wailsjsdir": "app/frontend/src",
-  "assets": "app/frontend/dist"
+  "wailsjsdir": "wails/frontend/src",
+  "assets": "wails/frontend/dist",
+  "build:dir": "wails/build"
 }
