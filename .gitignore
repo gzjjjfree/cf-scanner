@@ -7,3 +7,4 @@ okresult*
 ip.txt
 *.log
 * text=auto eol=lf
+*.exe
