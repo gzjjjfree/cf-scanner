@@ -30,10 +30,10 @@ jobs:
           TAG_NAME=${GITHUB_REF#refs/tags/}
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
           go build -ldflags "-s -w -X 'github.com/gzjjjfree/cf-scanner/cmd.Version=${TAG_NAME}'" \
-          -o release/cf-scanner-cli-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
+          -o release/cf-scanner${{ matrix.ext }} .
       - uses: actions/upload-artifact@v4
         with:
-          name: cli-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: cf-scanner-cli-${{ matrix.goos }}-${{ matrix.goarch }}
           path: release/*
 
   # --- 任务 2: 构建 Lorca (GUI) 版本 ---
@@ -55,7 +55,7 @@ jobs:
         run: |
           LDFLAGS="-s -w -X 'main.isLorca=true'"
           if [ "${{ matrix.platform }}" == "windows" ]; then LDFLAGS="$LDFLAGS -H=windowsgui"; fi
-          go build -ldflags "$LDFLAGS" -o ${{ matrix.name }} .
+          go build -ldflags "$LDFLAGS" -o cf-scanner-lorcaUI-${{ matrix.name }} .
       - uses: actions/upload-artifact@v4
         with:
           name: lorca-${{ matrix.platform }}
@@ -93,8 +93,7 @@ jobs:
             chmod -R +x node_modules/.bin/
           fi
           npm run build
-          cd ../..
-          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -o cf-scanner-wails-${{ matrix.tag }}
+          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -o cf-scanner-wailsUI-${{ matrix.tag }}
       - uses: actions/upload-artifact@v4
         with:
           name: wails-${{ matrix.tag }}
