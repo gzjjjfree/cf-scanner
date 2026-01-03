@@ -109,7 +109,7 @@ jobs:
             cd ../..
           else
             # Windows 和 Linux，直接把 build/bin 下的文件挪到根目录方便上传
-            cp build/bin/* ./
+            cp build/bin/* ../
           fi
       - uses: actions/upload-artifact@v4
         with:
