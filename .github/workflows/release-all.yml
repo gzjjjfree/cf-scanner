@@ -99,11 +99,24 @@ jobs:
           EXT=""
           if [ "${{ matrix.os }}" == "windows-latest" ]; then EXT=".exe"; fi
           wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -o "cf-scanner-wailsUI-${{ matrix.tag }}$EXT"
+          # --- 针对 macOS 的特殊处理 ---
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            # Wails 在 mac 上通常会生成 build/bin/cf-scanner-wailsUI-mac.app
+            # 我们进入该目录并压缩它
+            cd build/bin
+            zip -r ../../cf-scanner-wailsUI-mac.zip ./*.app
+            cd ../..
+          else
+            # Windows 和 Linux，直接把 build/bin 下的文件挪到根目录方便上传
+            cp build/bin/* ./
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: wails-${{ matrix.tag }}
-          path: 
-            wails/build/bin/*
+          path: |
+            cf-scanner-wailsUI-mac.zip
+            cf-scanner-wailsUI-win.exe
+            cf-scanner-wailsUI-linux
 
   # --- 任务 4: 汇总并正式发布 ---
   publish:
