@@ -43,13 +43,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - {
-              os: windows-latest,
-              platform: windows,
-              name: cf-scanner-lorca-win.exe,
-            }
-          - { os: macos-latest, platform: macos, name: cf-scanner-lorca-mac }
-          - { os: ubuntu-latest, platform: linux, name: cf-scanner-lorca-linux }
+          - {os: windows-latest, platform: windows, name: cf-scanner-lorca-win.exe}
+          - {os: macos-latest, platform: macos, name: cf-scanner-lorca-mac}
+          - {os: ubuntu-latest, platform: linux, name: cf-scanner-lorca-linux}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -59,7 +55,7 @@ jobs:
         run: |
           LDFLAGS="-s -w -X 'main.isLorca=true'"
           if [ "${{ matrix.platform }}" == "windows" ]; then LDFLAGS="$LDFLAGS -H=windowsgui"; fi
-          go build -ldflags "$LDFLAGS" -o cf-scanner-lorcaUI-${{ matrix.name }} .
+          go build -ldflags "$LDFLAGS" -o "${{ matrix.name }}" .
       - uses: actions/upload-artifact@v4
         with:
           name: lorca-${{ matrix.platform }}
@@ -98,7 +94,10 @@ jobs:
           fi
           npm run build
           cd ../..
-          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -o cf-scanner-wailsUI-${{ matrix.tag }}
+          # 关键点：根据平台判断是否加 .exe
+          EXT=""
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then EXT=".exe"; fi
+          wails build -platform ${{ matrix.platform }} -ldflags "-X 'main.isWails=true' -s -w" -o "cf-scanner-wailsUI-${{ matrix.tag }}$EXT"
       - uses: actions/upload-artifact@v4
         with:
           name: wails-${{ matrix.tag }}
