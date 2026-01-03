@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/gzjjjfree/cf-scanner/gui"
 	"github.com/gzjjjfree/cf-scanner/scanner"
 	"github.com/gzjjjfree/cf-scanner/utils"
+	"github.com/gzjjjfree/cf-scanner/webUI"
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 )
@@ -31,12 +31,12 @@ var rootCmd = &cobra.Command{
 		if cmdConfig.ShowWeb {
 			// 在另一个线程启动 Web 服务，防止阻塞
 			go func() {
-				gui.Makeweb()
+				webUI.Makeweb()
 			}()
 
 			// 给服务器一点启动时间（比如 500ms），然后打开浏览器
 			time.Sleep(time.Millisecond * 500)
-			gui.OpenBrowser("http://127.0.0.1:8090")
+			webUI.OpenBrowser("http://127.0.0.1:8090")
 			// 保持主进程不退出
 			select {}
 		}
