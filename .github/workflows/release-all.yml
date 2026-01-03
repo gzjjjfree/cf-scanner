@@ -103,7 +103,7 @@ jobs:
           if [ "${{ matrix.os }}" == "macos-latest" ]; then
             # Wails 在 mac 上通常会生成 build/bin/cf-scanner-wailsUI-mac.app
             # 我们进入该目录并压缩它
-            cd build/bin
+            cd wails/build/bin
             zip -r ../../cf-scanner-wailsUI-mac.zip ./*.app
             cd ../..
           else
