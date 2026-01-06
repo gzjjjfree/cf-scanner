@@ -45,7 +45,7 @@ func ParseIP(ipFile string, testCount int, l Logger) ([][]string, int) {
 		} else {
 			// 每个 ip 段分别取样
 			groups := pickSamples(ips, testCount)
-			fmt.Printf("IP 段 [%v] 随机抽样数为: %v\n", cidr, len(groups))
+			l.WriteLog(fmt.Sprintf("IP 段 [%v] 随机抽样数为: %v\n", cidr, len(groups)))
 			// 二维切片 ipGroups 的每个切片都是一个 ip 段取样的结果
 			ipGroups = append(ipGroups, groups)
 		}

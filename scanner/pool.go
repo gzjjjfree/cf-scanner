@@ -102,10 +102,7 @@ func RunScanPool(ctx context.Context, ipGroups [][]string, workerCount int, doma
 
 	wg.Wait()
 	// 停止旋转图标
-	if ctx.Err() != nil {
-		l.WriteLog("🛑 扫描已提前停止，正在整理已发现的结果...")
-	}
-	fmt.Print("\r") // 结束后清除掉那个图标
+	//fmt.Print("\r") // 结束后清除掉那个图标
 	close(resultsChan)
 	<-done // 等待结果切片填充完毕
 
@@ -147,36 +144,36 @@ func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed floa
 			l.WriteLog("🛑 深度测速已手动停止")
 			return finalSorted // 立即返回已经得到的结果
 		default:
+		}
+		bestIP := finalResults[i].IP
 
-			bestIP := finalResults[i].IP
+		speed, err := TestSpeed(ctx, bestIP, domain, 5*time.Second, l)
 
-			speed, err := TestSpeed(ctx, bestIP, domain, 5*time.Second, l)
-
-			if err != nil {
-				if ctx.Err() != nil {
-					return finalSorted
-				}
-				l.WriteLog(fmt.Sprintf("下载测速异常: %v [%s]\n", err, bestIP))
-				continue
-			} else if speed < minSpeed {
-				l.WriteLog(fmt.Sprintf("速率过低: [%s] 速度: %.2f MB/s\n", bestIP, speed))
-				continue
-			} else {
-				l.WriteLog(fmt.Sprintf("🚀 [%s] 速度: %.2f MB/s\n", bestIP, speed))
-			}
-
-			finalSorted = append(finalSorted, FinalResult{
-				IP:          bestIP,
-				DownloadMBs: speed,                   // 对应结构体中的 DownloadMBs 字段
-				Latency:     finalResults[i].Latency, // 别忘了把第一轮测得的延迟也带过来，方便存入 CSV
-				CreatedAt:   time.Now(),              // 记录这一刻的时间
-			})
-
-			outResults++
-			if outResults == outCount {
+		if err != nil {
+			if ctx.Err() != nil {
 				return finalSorted
 			}
+			l.WriteLog(fmt.Sprintf("下载测速异常: %v [%s]\n", err, bestIP))
+			continue
+		} else if speed < minSpeed {
+			l.WriteLog(fmt.Sprintf("速率过低: [%s] 速度: %.2f MB/s\n", bestIP, speed))
+			continue
+		} else {
+			l.WriteLog(fmt.Sprintf("🚀 [%s] 速度: %.2f MB/s\n", bestIP, speed))
 		}
+
+		finalSorted = append(finalSorted, FinalResult{
+			IP:          bestIP,
+			DownloadMBs: speed,                   // 对应结构体中的 DownloadMBs 字段
+			Latency:     finalResults[i].Latency, // 别忘了把第一轮测得的延迟也带过来，方便存入 CSV
+			CreatedAt:   time.Now(),              // 记录这一刻的时间
+		})
+
+		outResults++
+		if outResults == outCount {
+			return finalSorted
+		}
+
 	}
 
 	// 按速度再次排序

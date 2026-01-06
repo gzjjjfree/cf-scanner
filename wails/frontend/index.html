@@ -45,6 +45,11 @@
         color: #00000040;
         cursor: not-allowed;
       }
+      .btn-start:disabled {
+        background-color: #f5f5f5;
+        color: #00000040;
+        cursor: not-allowed;
+      }
       .status-bar {
         display: flex;
         justify-content: space-between;
@@ -100,7 +105,7 @@
 
     <div class="status-bar">
       <div id="statusText">状态: 待机</div>
-      <button id="startBtn" onclick="doScan()">开始扫描</button>
+      <button id="startBtn" onclick="doScan()" class="btn-start">开始扫描</button>
       <button id="stopBtn" onclick="stopScan()" class="btn-stop" disabled>
         停止扫描
       </button>
@@ -258,6 +263,7 @@
       window.doScan = () => {
         const startBtn = document.getElementById("startBtn");
         startBtn.disabled = true; // 立即变灰，防止连点
+        
         const command = {
           Type: "start",
           Data: {

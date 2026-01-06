@@ -45,6 +45,11 @@
         color: #00000040;
         cursor: not-allowed;
       }
+      .btn-start:disabled {
+        background-color: #f5f5f5;
+        color: #00000040;
+        cursor: not-allowed;
+      }
       .status-bar {
         display: flex;
         justify-content: space-between;
@@ -100,7 +105,7 @@
 
     <div class="status-bar">
       <div id="statusText">状态: 待机</div>
-      <button id="startBtn">开始扫描</button>
+      <button id="startBtn" class="btn-start">开始扫描</button>
       <button id="stopBtn" class="btn-stop" disabled>停止扫描</button>
       <button id="clearBtn">清空日志</button>
     </div>
@@ -122,19 +127,21 @@
         handleWSMessage(msg) {
           try {
             if (msg.type === "log") {
-              let addn = "";
-              if (/^\s*\n/.test(msg.data)) {
-                addn = "\n";
-                msg.data = msg.data.replace(/\n/, "");
-              }
-
-              const cleanLine = msg.data.replace(/\n$/, "");
-              if (cleanLine.includes("\n")) {
-                this.processLog(cleanLine);
-              }
-              this.processLog(
-                `${addn}[${new Date().toLocaleTimeString()}] ${cleanLine}`
-              );
+              let before, behide = countNewlines(msg, "\n")
+			        let beforer, behider = countNewlines(msg, "\r")
+              //let addn = "";
+              //if (/^\s*\n/.test(msg.data)) {
+              //  addn = "\n";
+              //  msg.data = msg.data.replace(/\n/, "");
+              //}
+//
+              //const cleanLine = msg.data.replace(/\n$/, "");
+              //if (cleanLine.includes("\n")) {
+              //  this.processLog(cleanLine);
+              //}
+              //this.processLog(
+              //  `${addn}[${new Date().toLocaleTimeString()}] ${cleanLine}`
+              //);
             } else if (msg.type === "status") {
               this.updateUIStatus(msg.data.is_scanning);
             }
@@ -142,6 +149,10 @@
             // 如果不是 JSON，兼容处理成纯文本日志
             this.processLog(msg);
           }
+        }
+
+        countNewlines(msg, m) {
+          
         }
 
         /**
