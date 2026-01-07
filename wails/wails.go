@@ -4,8 +4,9 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"sync"
 
+	"github.com/gzjjjfree/cf-scanner/cmd"
+	"github.com/gzjjjfree/cf-scanner/scanner"
 	"github.com/schollz/progressbar/v3"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -21,7 +22,7 @@ func main() {
 	wailsapp := NewApp()
 
 	err := wails.Run(&options.App{
-		Title: "CF-Scanner",
+		Title: fmt.Sprint("CF-Scanner Wails版       版本: ", cmd.Version),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -38,9 +39,7 @@ func main() {
 
 // SimpleApp 给前端调用的结构体
 type SimpleApp struct {
-	ctx    context.Context
-	cancel context.CancelFunc // 存放取消函数
-	mu     sync.Mutex         // 增加锁，防止并发操作 cancel 导致崩溃
+	ctx context.Context
 }
 
 func NewApp() *SimpleApp {
@@ -60,32 +59,8 @@ func (s *SimpleApp) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, 桌面模式启动成功!", name)
 }
 
-// ScanStatus 定义了要返回给前端的 JSON 结构
-type ScanStatus struct {
-	IsRunning bool `json:"is_running"`
-	waitStop  bool
-}
-
-// 使用互斥锁确保并发安全，防止多线程同时写状态导致程序崩溃
-var (
-	status      ScanStatus
-	statusMutex sync.Mutex
-)
-
 // StartScan 模拟你的 cf-scanner 扫描过程
-func (a *SimpleApp) StartScan(cmd WSMessage) {
-	a.mu.Lock()
-	// 如果已经在运行，先停止旧的（可选，视逻辑而定）
-	if a.cancel != nil {
-		a.cancel()
-	}
-	// 根据 Type 分发逻辑
-
-	// 每次开始前，创建一个可取消的 context
-	appCtx, cancel := context.WithCancel(a.ctx)
-	a.cancel = cancel
-	a.mu.Unlock()
-
+func (a *SimpleApp) StartScan(cmd WSMessage) {	
 	switch cmd.Type {
 	case "start":
 		// 首先断言 cmd.Data 是一个 map
@@ -96,8 +71,8 @@ func (a *SimpleApp) StartScan(cmd WSMessage) {
 				Data: "❌ 错误：无效的参数格式\n",
 			}
 			runtime.EventsEmit(a.ctx, "scan_log", content)
-			status.IsRunning = false
-			broadcastStatus(appCtx, false)
+			scanner.Status.IsRunning = false
+			broadcastStatus(a.ctx, false)
 		}
 
 		// 创建一个真正的 map[string]string
@@ -105,33 +80,22 @@ func (a *SimpleApp) StartScan(cmd WSMessage) {
 		for k, v := range rawParams {
 			// 将 any 转换为 string（处理字符串、数字、布尔等）
 			cleanParams[k] = fmt.Sprintf("%v", v)
-		}
+		}		
 		// 你可以从 cmd.Type 中提取前端传来的参数
-		go func() {
-			startScanWorkflow(appCtx, cleanParams)
-
-			// 任务彻底结束后，清理 cancel 防止内存泄漏
-			a.mu.Lock()
-			a.cancel = nil
-			a.mu.Unlock()
-		}()
+		go startScanWorkflow(a, cleanParams)
+		
 	case "stop":
-		a.StopScan()
-		status.waitStop = true
-		content := WSMessage{
-			Type: "log",
-			Data: "\n🛑 正在通过 WebSocket 指令停止任务...\n",
-		}
-		runtime.EventsEmit(a.ctx, "scan_log", content)
+		scanner.Status.WaitStop = true
+		a.stopScan()
 	}
 }
 
-func (a *SimpleApp) StopScan() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.cancel != nil {
-		a.cancel() // 触发取消信号
-		fmt.Println("🛑 已下达停止指令")
+func (a *SimpleApp) stopScan() {
+	scanner.StatusMutex.Lock()
+	defer scanner.StatusMutex.Unlock()
+	if scanner.CancelScan != nil {
+		scanner.CancelScan() // 触发取消信号
+		runtime.EventsEmit(a.ctx, "scan_log", "\n🛑 正在通过 WebSocket 指令停止任务...\n")
 	}
 }
 
@@ -152,8 +116,6 @@ type WailsLogger struct {
 
 // 让 WebLogger 实现 WriteLog 方法
 func (w WailsLogger) WriteLog(msg string) {
-	fmt.Print(msg)
-
 	// 将日志推送到前端
 	content := WSMessage{
 		Type: "log",

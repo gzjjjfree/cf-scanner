@@ -45,7 +45,7 @@
         color: #00000040;
         cursor: not-allowed;
       }
-      #startBtnbtn-star:disabled {
+      .btn-start:disabled {
         background-color: #f5f5f5;
         color: #00000040;
         cursor: not-allowed;
@@ -76,7 +76,7 @@
         overflow-y: auto;
       }
     </style>
-    <script type="module" crossorigin src="/assets/index.b1239bbe.js"></script>
+    <script type="module" crossorigin src="/assets/index.3d6a77c5.js"></script>
   </head>
   <body>
     <h2>CF-Scanner 实时控制台</h2>
@@ -100,13 +100,16 @@
       /></label>
       <label style="margin-left: 10px"
         >最终结果数:
-        <input type="number" id="count" value="100" style="width: 40px"
+        <input type="number" id="count" value="10" style="width: 40px"
       /></label>
     </div>
 
     <div class="status-bar">
       <div id="statusText">状态: 待机</div>
-      <button id="startBtn" onclick="doScan()">开始扫描</button>
+      <button id="downloadBtn">下载说明</button>
+      <button id="startBtn" onclick="doScan()" class="btn-start">
+        开始扫描
+      </button>
       <button id="stopBtn" onclick="stopScan()" class="btn-stop" disabled>
         停止扫描
       </button>

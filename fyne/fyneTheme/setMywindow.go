@@ -92,8 +92,13 @@ func SetMyWindow(window fyne.Window, a fyne.App) {
 	)
 
 	imgBtnSize := fyne.NewSize(100, 40)
-	var startBtn *ImageButton
-	var stopBtn *ImageButton
+	var (
+		startBtn    *ImageButton
+		stopBtn     *ImageButton
+		downloadBtn *ImageButton
+	)
+	goScan.CanRead = true
+	goScan.CanDownload = false
 
 	// 定义 StringList 绑定
 	logDataList := binding.NewStringList()
@@ -124,8 +129,10 @@ func SetMyWindow(window fyne.Window, a fyne.App) {
 	// 模拟 CSS 的背景色和 Padding
 	logBg := canvas.NewRectangle(color.NRGBA{R: 15, G: 15, B: 15, A: 255})
 
-	logDataList.Append("等待扫描开始...")
-	
+	logDataList.Append(`等待扫描开始...
+		输出的结果文件可以当输入的 IP 列表文件进行精选
+    简单点就把 result.json 的内容覆盖进 ip.txt 即可
+    输出的 json 文件格式是 v2ray 改版 v5-result 读取 IP 池的格式`)
 	logDisplay.HideSeparators = true // 关键：隐藏白条
 	logDisplay.OnSelected = func(id widget.ListItemID) {
 		logDisplay.Unselect(id) // 只要被选中就立刻取消选中，防止变色
@@ -168,17 +175,59 @@ func SetMyWindow(window fyne.Window, a fyne.App) {
 			fyne.Do(func() { logDisplay.ScrollToBottom() })
 		}
 	}()
+	//go func() {
+	//	for msg := range goScan.LogChan {
+	//		// 取得信息行的换行符个数
+	//		before, behide := countNewlines(msg, "\n")
+	//		beforer, behider := countNewlines(msg, "\r")
+//
+	//		// 行前的换行符，每个 \n 增加一行 logDataList
+	//		for range before {
+	//			logDataList.Append(" ")
+	//		}
+	//		msg = strings.NewReplacer("\n", "", "\r", "").Replace(msg)
+	//		lastIdx := logDataList.Length() - 1
+	//		if lastIdx >= 0 { // 已有行数才进行更新行操作
+	//			if beforer > 0 || behider > 0 { // 有换行符为 \r 的为进度条，对最后一行进行更新
+	//				logDataList.SetValue(lastIdx, msg)
+	//			} else { // 没有换行符时，追加到最后一行
+	//				data, _ := logDataList.GetValue(lastIdx)
+	//				logDataList.SetValue(lastIdx, fmt.Sprint(data, msg))
+	//			}
+//
+	//			// // 行后的换行符，每个 \n 增加一行 logDataList
+	//			for range behide {
+	//				logDataList.Append(" ")
+	//			}
+	//			fyne.Do(func() { logDisplay.ScrollToBottom() })
+	//			continue
+	//		} else { // 没有行数时，直接增加一行
+	//			logDataList.Append(msg)
+	//		}
+//
+	//		for range behide {
+	//			logDataList.Append(" ")
+	//		}
+	//		fyne.Do(func() { logDisplay.ScrollToBottom() })
+	//	}
+	//}()
 
 	// --- 状态与按钮区 ---
 	statusLabel := widget.NewLabel("状态: 待机")
+	// 将 Label 放入一个左对齐的容器中
+	statusContainer := container.NewHBox(statusLabel)
+	//statusLabelContainer := container.New(layout.NewCustomPaddedLayout(0, 0, 0, 0), statusLabel)
 
 	// 开始按钮
 	startBtn = NewImageButton(png.ResourceStartPng, imgBtnSize, func() {
 		statusLabel.SetText("状态: 运行中...")
 
 		// 设置按钮的变化
-		startBtn.Disable(png.ResourceStartdPng)		
+		startBtn.Disable(png.ResourceStartdPng)
 		stopBtn.Enable(png.ResourceStopPng)
+		downloadBtn.Disable(png.ResourceReadDownloadPng)
+		goScan.CanRead = false
+		goScan.CanDownload = false
 
 		// 读取输入框中的字符串并转换类型
 		threads, _ := strconv.Atoi(threadEntry.Text)
@@ -186,7 +235,7 @@ func SetMyWindow(window fyne.Window, a fyne.App) {
 		latency, _ := strconv.Atoi(latencyEntry.Text)
 		speed, _ := strconv.ParseFloat(speedEntry.Text, 64)
 		// 转到扫描逻辑
-		goScan.ReceivingParameters(threads, testNum, int64(latency), speed)
+		go goScan.ReceivingParameters(threads, testNum, int64(latency), speed)
 
 		logDataList.Set(nil) // 清空旧日志
 
@@ -199,6 +248,9 @@ func SetMyWindow(window fyne.Window, a fyne.App) {
 						statusLabel.SetText("状态: 待机")
 						startBtn.Enable(png.ResourceStartPng)
 						stopBtn.Disable(png.ResourceStopdPng)
+						downloadBtn.Enable(png.ResourceReadDownloadPng)
+						goScan.CanRead = true
+						goScan.CanDownload = false
 					})
 				}
 			}
@@ -208,24 +260,84 @@ func SetMyWindow(window fyne.Window, a fyne.App) {
 	// 停止按钮
 	stopBtn = NewImageButton(png.ResourceStopdPng, imgBtnSize, func() {
 		statusLabel.SetText("状态: 停止中...")
-		
+
 		stopBtn.Disable(png.ResourceStopdPng)
 		scanner.CancelScan()
-		goScan.Status.WaitStop = true
+		scanner.Status.WaitStop = true
+
+		downloadBtn.Enable(png.ResourceReadDownloadPng)
+		goScan.CanRead = true
+		goScan.CanDownload = false
 	})
+	stopBtn.Disable(png.ResourceStopdPng)
 
 	clearBtn := NewImageButton(png.ResourceClearPng, imgBtnSize, func() {
 		// 重置 UI 绑定数据
 		logDataList.Set(nil)
-
+		downloadBtn.Enable(png.ResourceReadDownloadPng)
+		goScan.CanRead = true
+		goScan.CanDownload = false
 		// 可选：重置状态信息
 		statusLabel.SetText("状态: 已清空")
 	})
 
+	// 下载按钮
+	downloadBtn = NewImageButton(png.ResourceReadDownloadPng, imgBtnSize, func() {
+		if goScan.CanRead { // 当前按键功能为查看说明
+			logDataList.Set(nil) // 清空旧日志
+			goScan.CanRead = false
+			statusLabel.SetText("状态: 阅读下载说明")
+			downloadBtn.Enable(png.ResourceStartDownloadPng)
+			goScan.CanDownload = true
+			go func() {
+				logDataList.Append(goScan.ReadDownload)
+				fyne.Do(func() { logDisplay.ScrollToBottom() })
+			}()
+		} else { // 当前按键功能为正式开始下载
+			goScan.CanDownload = false
+			goScan.CanRead = true
+			downloadBtn.Enable(png.ResourceReadDownloadPng)
+		}
+	})
+
+	// 使用 GridWithColumns(4) 确保四个按钮大小完全一致
+	buttonGroup := container.NewGridWithColumns(8,
+		downloadBtn,
+		layout.NewSpacer(),
+		startBtn,
+		layout.NewSpacer(),
+		layout.NewSpacer(),
+		stopBtn,
+		layout.NewSpacer(),
+		clearBtn,
+	)
+
+	// 这样无论状态文字多长，按钮组都会靠右对齐，且宽度固定
+	bottomActionRow := container.NewBorder(
+		nil, nil,
+		statusContainer, // Left: 状态显示
+		buttonGroup,     // Right: 这里不放东西，让按钮组占满剩余空间（或者反过来）
+		nil,             // Center: 按钮组
+	)
+
+	// --- 4. 整合最终的 controls 布局 ---
 	controls := container.NewVBox(
 		inputRow,
-		container.NewHBox(statusLabel, layout.NewSpacer(), layout.NewSpacer(), startBtn, layout.NewSpacer(), stopBtn, layout.NewSpacer(), clearBtn),
+		// 增加一个微小的间隔线或空间
+		canvas.NewRectangle(color.Transparent),
+		bottomActionRow,
 	)
+	//controls := container.NewVBox(
+	//	inputRow,
+	//	container.NewHBox(container.NewGridWithColumns(5, // 减少列数，让分布更可控
+	//		statusContainer,
+	//		downloadBtn,
+	//		startBtn,
+	//		stopBtn,
+	//		clearBtn,
+	//	),
+	//	),
+	//)
 	logContainer := container.NewStack(logBg, scrollContainer)
 
 	// 最终布局

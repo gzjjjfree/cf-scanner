@@ -12,12 +12,6 @@ import (
 	"github.com/gzjjjfree/cf-scanner/scanner"
 )
 
-// 定义发送给前端的消息结构
-type WSMessage struct {
-	Type string `json:"type"` // "log" 或 "status"
-	Data any    `json:"data"` // 日志内容 或 状态对象
-}
-
 // --- WebSocket 相关配置 ---
 var (
 	// 升级器：将 HTTP 协议提升为 WebSocket
@@ -55,7 +49,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		conn.Close()
 	}()
 
-	status.waitStop = false
+	scanner.Status.WaitStop = false
 	// --- 关键：监听前端发来的消息 ---
 	for {
 		_, message, err := conn.ReadMessage()
@@ -63,7 +57,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		var cmd WSMessage
+		var cmd scanner.WSMessage
 		if err := json.Unmarshal(message, &cmd); err != nil {
 			continue // 忽略非法格式
 		}
@@ -74,8 +68,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			// 1. 首先断言 cmd.Data 是一个 map
 			rawParams, ok := cmd.Data.(map[string]any)
 			if !ok {
-				WriteLog("❌ 错误：无效的参数格式\n")
-				status.IsRunning = false
+				BridgeLogger.WriteLog("❌ 错误：无效的参数格式\n")
+				scanner.Status.IsRunning = false
 				broadcastStatus(false)
 				continue
 			}
@@ -91,8 +85,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		case "stop":
 			if scanner.CancelScan != nil {
 				scanner.CancelScan()
-				status.waitStop = true
-				WriteLog("\n🛑 正在通过 WebSocket 指令停止任务...\n")
+				scanner.Status.WaitStop = true
+				BridgeLogger.WriteLog("\n🛑 正在通过 WebSocket 指令停止任务...\n")
 			}
 		}
 	}
@@ -100,21 +94,16 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 // 启动前处理参数
 func startScanWorkflow(params map[string]string) {
-	statusMutex.Lock()
-	if status.IsRunning {
-		statusMutex.Unlock()
+	scanner.StatusMutex.Lock()
+	if scanner.Status.IsRunning {
+		scanner.StatusMutex.Unlock()
 		return
 	}
 	var scanCtx context.Context
 	scanCtx, scanner.CancelScan = context.WithCancel(context.Background())
-	status.IsRunning = true
-	statusMutex.Unlock()
-
-	defer func() {
-		statusMutex.Lock()
-		status.IsRunning = false
-		statusMutex.Unlock()
-	}()
+	scanner.Status.IsRunning = true
+	scanner.Status.WaitStop = false
+	scanner.StatusMutex.Unlock()
 
 	// 赋予默认值
 	var config scanner.ScanConfig
@@ -161,7 +150,7 @@ func startScanWorkflow(params map[string]string) {
 
 // 发送状态更新（在扫描开始和结束时调用）
 func broadcastStatus(isScanning bool) {
-	msg := WSMessage{
+	msg := scanner.WSMessage{
 		Type: "status",
 		Data: map[string]bool{"is_scanning": isScanning},
 	}

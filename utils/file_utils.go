@@ -4,16 +4,30 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/gzjjjfree/cf-scanner/scanner"
 )
 
 // saveToCSV 保存详细报告
 func SaveToCSV(filename string, data []scanner.FinalResult) {
-	file, _ := os.Create(filename)
+	// 1. 提取目录路径并创建 (例如 "result/result.csv")
+	dir := filepath.Dir(filename)
+	
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.Println("创建目录失败:", err)
+		return
+	}
+
+	// 2. 创建文件
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Println("创建文件失败:", err)
+		return
+	}
 	defer file.Close()
-	file.WriteString("\xEF\xBB\xBF") // 写入 UTF-8 BOM
 
 	writer := csv.NewWriter(file)
 	defer writer.Flush()

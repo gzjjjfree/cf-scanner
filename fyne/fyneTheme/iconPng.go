@@ -46,8 +46,6 @@ func (b *ImageButton) Disable(res *fyne.StaticResource) {
 	b.disabled = true
 	// 可选：在此处切换为“灰色”版本的图片，给用户视觉反馈
 	b.SetImage(res)
-	b.img.Refresh()
-	b.Refresh()
 }
 
 // Enable 启用按钮

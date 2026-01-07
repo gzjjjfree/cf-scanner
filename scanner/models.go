@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/schollz/progressbar/v3"
@@ -25,8 +26,24 @@ type Logger interface {
 	GetColorCodes() bool
 }
 
-// 全局定义取消函数
-var CancelScan context.CancelFunc
+// 定义全局变量
+var (
+	CancelScan  context.CancelFunc
+	Conf        ScanConfig
+	Status      ScanStatus
+	StatusMutex sync.Mutex
+)
+
+type ScanStatus struct {
+	IsRunning bool `json:"is_running"`
+	WaitStop  bool
+}
+
+// 定义发送给前端的消息结构
+type WSMessage struct {
+	Type string `json:"type"` // "log" 或 "status"
+	Data any    `json:"data"` // 日志内容 或 状态对象
+}
 
 type ScanConfig struct {
 	NThreads   int     `json:"nthreads"`    // 并发协程数
@@ -75,7 +92,7 @@ func (conf *ScanConfig) Check() {
 	}
 
 	if conf.OutPrefix == "" {
-		conf.OutPrefix = "result" // 给予默认值
+		conf.OutPrefix = "result/result" // 给予默认值
 	}
 
 	if conf.JsonPath == "" {

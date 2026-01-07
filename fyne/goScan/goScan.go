@@ -17,30 +17,33 @@ func ReceivingParameters(threads int, testNum int, latency int64, speed float64)
 
 	conf.Check()
 
-	StatusMutex.Lock()
-	if Status.isRunning {
-		StatusMutex.Unlock()
+	scanner.StatusMutex.Lock()
+	if scanner.Status.IsRunning {
+		scanner.StatusMutex.Unlock()
 		return
 	}
 
-	Status.isRunning = true
-	Status.WaitStop = false
-	StatusMutex.Unlock()
+	scanner.Status.IsRunning = true
+	scanner.Status.WaitStop = false
+	scanner.StatusMutex.Unlock()
 
-	defer func() {
-		StatusMutex.Lock()
-		Status.isRunning = false
-		Status.WaitStop = false
-		StatusMutex.Unlock()
-	}()
-
-	go runScannerLogic()
+	runScannerLogic()
 }
 
 func runScannerLogic() {
-	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		scanner.StatusMutex.Lock()
+		defer scanner.StatusMutex.Unlock()
+		scanner.Status.IsRunning = false
+		scanner.Status.WaitStop = false
+		endScanner("\n✨ 扫描任务已结束。\n")
+	}()
+	
+	scanner.StatusMutex.Lock()
+	var ctx context.Context
+	ctx, scanner.CancelScan = context.WithCancel(context.Background())
 	BridgeLogger.Ctx = ctx
-	scanner.CancelScan = cancel
+	scanner.StatusMutex.Unlock()
 
 	BridgeLogger.WriteLog("🚀 扫描任务启动...\n")
 	BridgeLogger.WriteLog(fmt.Sprintf("[文件]: %s  [并发]: %d  [抽样]: %d/段  [目标]: %s\n", conf.FilePath, conf.NThreads, conf.TestNum, conf.SniDomain))
@@ -65,10 +68,15 @@ func runScannerLogic() {
 		BridgeLogger.WriteLog(fmt.Sprintf("排名 %d: [%s], 延迟: %v\n", i+1, finalResults[i].IP, finalResults[i].Latency))
 	}
 
-	if Status.WaitStop {
+	scanner.StatusMutex.Lock()
+	if scanner.Status.WaitStop {
+		defer scanner.StatusMutex.Unlock()
+		scanner.Status.IsRunning = false
+		scanner.Status.WaitStop = false
 		endScanner("\n🛑 扫描已提前停止！不进行下一步测速\n")
 		return
 	}
+	scanner.StatusMutex.Unlock()	
 
 	top := min(len(finalResults), conf.FinalCount*2)
 	// 取前 outCount 名进行深度测速
@@ -76,22 +84,20 @@ func runScannerLogic() {
 
 	// 进行测速
 	finalSorted := scanner.RunDeepTest(ctx, conf.FinalCount, conf.SniDomain, conf.MinSpeed, finalResults, BridgeLogger)
-
-	outPrefix := "result"
-	jsonPath := "./okresult.json"
+	
 	// 结果已经存储在 finalSorted 切片中
 	if len(finalSorted) > 0 {
-		utils.SaveToCSV(outPrefix+".csv", finalSorted)
-		utils.SaveToJSON(outPrefix+".json", finalSorted)
+		utils.SaveToCSV(conf.OutPrefix + ".csv", finalSorted)
+		utils.SaveToJSON(conf.OutPrefix + ".json", finalSorted)
 
-		err := utils.AppendToJSONFile(jsonPath, finalSorted)
+		err := utils.AppendToJSONFile(conf.JsonPath, finalSorted)
 		if err != nil {
 			BridgeLogger.WriteLog(fmt.Sprintf("\n保存文件失败: %v\n", err))
 		} else {
-			BridgeLogger.WriteLog(fmt.Sprintf("\n结果已追加至: %s\n", jsonPath))
+			BridgeLogger.WriteLog(fmt.Sprintf("\n结果已追加至: %s\n", conf.JsonPath))
 		}
 
-		BridgeLogger.WriteLog(fmt.Sprintf("结果已保存至 %s.csv 和 %s.json\n", outPrefix, outPrefix))
+		BridgeLogger.WriteLog(fmt.Sprintf("结果已保存至 %s.csv 和 %s.json\n", conf.OutPrefix, conf.OutPrefix))
 	} else {
 		endScanner("\n本次未搜到优质 IP，保留旧的配置文件。")
 		return
@@ -106,13 +112,10 @@ func runScannerLogic() {
 	if len(finalSorted) > 0 {
 		BridgeLogger.WriteLog(fmt.Sprintf("最佳 IP: [%s] | 预估带宽: %.2f MB/s\n", finalSorted[0].IP, finalSorted[0].DownloadMBs))
 	}
-
-	endScanner("")
+	// 扫描结束
 }
 
 func endScanner(msg string) {
 	BridgeLogger.WriteLog(msg)
-	Status.WaitStop = false
-	Status.isRunning = false
-	FinishChan <- Status.isRunning
+	FinishChan <- scanner.Status.IsRunning
 }

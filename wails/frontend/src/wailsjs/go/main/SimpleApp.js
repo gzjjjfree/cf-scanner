@@ -14,10 +14,6 @@ export function StartScan(arg1) {
   return window['go']['main']['SimpleApp']['StartScan'](arg1);
 }
 
-export function StopScan() {
-  return window['go']['main']['SimpleApp']['StopScan']();
-}
-
 export function WriteLog(arg1) {
   return window['go']['main']['SimpleApp']['WriteLog'](arg1);
 }

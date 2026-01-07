@@ -8,6 +8,4 @@ export function Greet(arg1:string):Promise<string>;
 
 export function StartScan(arg1:main.WSMessage):Promise<void>;
 
-export function StopScan():Promise<void>;
-
 export function WriteLog(arg1:string):Promise<void>;

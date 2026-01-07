@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 
+	"github.com/gzjjjfree/cf-scanner/cmd"
 	"github.com/gzjjjfree/cf-scanner/fyne/fyneTheme"
 
 	"fyne.io/fyne/v2"
@@ -35,8 +37,8 @@ func main() {
 
 	myApp.Settings().SetTheme(&chineseTheme{font: resourceSimheiTtf})
 
-	myWindow := myApp.NewWindow("CF-Scanner 原生版")
+	myWindow := myApp.NewWindow(fmt.Sprint("CF-Scanner 原生版       版本: ", cmd.Version))
 	myWindow.CenterOnScreen()
-	
+
 	fyneTheme.SetMyWindow(myWindow, myApp)
 }
