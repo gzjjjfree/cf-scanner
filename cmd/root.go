@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
+	"runtime"
 	"time"
 
 	"github.com/gzjjjfree/cf-scanner/scanner"
@@ -27,7 +29,7 @@ var rootCmd = &cobra.Command{
 		scanner.Conf.Check()
 
 		// 是否显示 Web GUI
-		if scanner.Conf.ShowWeb {
+		if scanner.Conf.ShowWeb && runtime.GOOS != "linux" {
 			// 在另一个线程启动 Web 服务，防止阻塞
 			go func() {
 				webUI.Makeweb()
@@ -46,6 +48,20 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		// 优先处理版本号逻辑
+		if scanner.Conf.DownloadV5 {
+			fmt.Printf("正在下载 v5-result\n")
+			exePath, err := os.Executable()
+			if err == nil {
+				fmt.Println("下载目录在: ", exePath)
+			}
+			targetURL := utils.GetDownloadURL("https://github.com/gzjjjfree/v5-result/releases/download", "custom-build", "v5-result") // 这里可以换成你动态获取的最新版本号
+
+			fileName := path.Base(targetURL)
+			utils.DownloadFile(targetURL, fileName)
+			return
+		}
+
 		if !scanner.Conf.ShouldRun {
 			// 如果用户没传 --run，则打印帮助并退出
 			cmd.Help()
@@ -55,8 +71,7 @@ var rootCmd = &cobra.Command{
 		defer func() {
 			scanner.StatusMutex.Lock()
 			defer scanner.StatusMutex.Unlock()
-			scanner.Status.IsRunning = false
-			scanner.Status.WaitStop = false			
+			scanner.Status.WaitStop = false
 		}()
 
 		// 打印启动参数预览（可选）
@@ -65,13 +80,8 @@ var rootCmd = &cobra.Command{
 		fmt.Printf("   [过滤]: 延迟 <%dms, 最低下载速度 >%v, 保留的数量 %v \n\n", scanner.Conf.MinLatency, scanner.Conf.MinSpeed, scanner.Conf.FinalCount)
 
 		scanner.StatusMutex.Lock()
-		if scanner.Status.IsRunning {
-			scanner.StatusMutex.Unlock()
-			return
-		}
 		var ctx context.Context
 		ctx, scanner.CancelScan = context.WithCancel(context.Background())
-		scanner.Status.IsRunning = true
 		scanner.Status.WaitStop = false
 		scanner.StatusMutex.Unlock()
 
@@ -82,8 +92,9 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		keyDone := make(chan struct{})
 		// 启动一个后台协程专门盯着键盘
-		go scanner.ListenForStopKey(ctx, scanner.CancelScan)
+		go scanner.ListenForStopKey(ctx, scanner.CancelScan, keyDone)
 
 		// 扫描延迟
 		finalResults := scanner.RunScanPool(ctx, ipGroups, scanner.Conf.NThreads, scanner.Conf.SniDomain, scanner.Conf.MinLatency, actualTaskCount, BridgeLogger)
@@ -97,8 +108,7 @@ var rootCmd = &cobra.Command{
 		scanner.StatusMutex.Lock()
 		if scanner.Status.WaitStop {
 			defer scanner.StatusMutex.Unlock()
-			scanner.Status.IsRunning = false
-			scanner.Status.WaitStop = false			
+			scanner.Status.WaitStop = false
 			return
 		}
 		scanner.StatusMutex.Unlock()
@@ -137,6 +147,8 @@ var rootCmd = &cobra.Command{
 		if len(finalSorted) > 0 {
 			fmt.Printf("最佳 IP: [%s] | 预估带宽: %.2f MB/s\n", finalSorted[0].IP, finalSorted[0].DownloadMBs)
 		}
+		scanner.CancelScan()
+		<-keyDone // 阻塞等待，直到 keyboard.Close() 执行完毕
 	},
 }
 
@@ -164,6 +176,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&scanner.Conf.OutPrefix, "out-put", "o", "result/result", "输出 CSV、JSON 文件的路径前缀")
 	rootCmd.Flags().StringVarP(&scanner.Conf.JsonPath, "push-json", "p", "./okresult.json", "输出到指定 JSON 文件的路径 (追加模式)")
 	rootCmd.Flags().BoolVarP(&scanner.Conf.AppendMode, "append", "a", false, "是否使用追加模式写入文件")
+	rootCmd.Flags().BoolVarP(&scanner.Conf.DownloadV5, "downloadv5", "y", false, "是否下载 v2ray 定制版 v5-result")
 
 	// 4. 其他
 	rootCmd.Flags().BoolVarP(&scanner.Conf.ShowVer, "version", "v", false, "显示版本号")

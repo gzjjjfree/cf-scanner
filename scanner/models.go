@@ -59,6 +59,7 @@ type ScanConfig struct {
 	ShowVer    bool    `json:"show_ver"`    // 是否显示版本
 	ShowWeb    bool    `json:"show_web"`    // 是否启用 web GUI
 	ShouldRun  bool    `json:"should_run"`  // 运行扫描
+	DownloadV5 bool    // 是否下载 v5-result
 }
 
 // 检查扫描参数，防止不合理设置

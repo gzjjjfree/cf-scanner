@@ -4,9 +4,12 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/gzjjjfree/cf-scanner/scanner"
 )
@@ -15,7 +18,7 @@ import (
 func SaveToCSV(filename string, data []scanner.FinalResult) {
 	// 1. 提取目录路径并创建 (例如 "result/result.csv")
 	dir := filepath.Dir(filename)
-	
+
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		log.Println("创建目录失败:", err)
 		return
@@ -100,4 +103,71 @@ func AppendToJSONFile(path string, newResults []scanner.FinalResult) error {
 
 	// 覆盖写入文件
 	return os.WriteFile(path, updatedJSON, 0644)
+}
+
+// 从 CF 官网下载 IP 列表并保存
+func DownloadFile(url string, filename string) error {
+	//exePath, err := os.Executable()
+	//fmt.Println("运行在: ", exePath)
+	// 发起请求
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("网络请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("服务器返回状态码异常: %d", resp.StatusCode)
+	}
+
+	// 读取内容
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("读取响应体失败: %v", err)
+	}
+
+	// 写入文件
+	err = os.WriteFile(filename, body, 0644)
+	if err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+	fmt.Println("已写入文件", filename)
+	return nil
+}
+
+func GetDownloadURL(baseURL string, version string, repoName string) string {
+	//baseURL := "https://github.com/gzjjjfree/v5-result/releases/download"
+	//https://github.com/gzjjjfree/v5-result/releases/download/custom-build/v5-result-windows-amd64.exe
+	var osName, arch, extension string
+
+	// 判定操作系统
+	switch runtime.GOOS {
+	case "windows":
+		osName = "windows"
+		extension = ".exe"
+	case "darwin": // macOS
+		osName = "macos"
+		extension = ""
+	case "linux":
+		osName = "linux"
+		extension = ""
+	default:
+		osName = "linux"
+		extension = ""
+	}
+
+	// 判定架构
+	switch runtime.GOARCH {
+	case "amd64":
+		arch = "amd64"
+	case "arm64":
+		arch = "arm64"
+	default:
+		arch = "amd64"
+	}
+
+	// 拼接符合你 Release 命名规则的字符串
+	// 假设你的命名是：v5-result-windows-64.zip
+	fileName := fmt.Sprintf("%s-%s-%s%s", repoName, osName, arch, extension)
+	return fmt.Sprintf("%s/%s/%s", baseURL, version, fileName)
 }

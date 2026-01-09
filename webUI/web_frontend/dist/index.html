@@ -372,6 +372,17 @@
         socket.send(JSON.stringify(command));
       }
 
+      // 发送下载指令
+      function downloadScan() {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+        const command = {
+          Type: "download",
+        };
+
+        socket.send(JSON.stringify(command));
+      }
+
       // 前端定时心跳
       setInterval(() => {
         if (socket && socket.readyState === WebSocket.OPEN) {

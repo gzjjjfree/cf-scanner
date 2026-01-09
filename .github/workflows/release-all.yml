@@ -178,5 +178,6 @@ jobs:
         with:
           files: ./all-files/*
           generate_release_notes: true
+          append_body: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

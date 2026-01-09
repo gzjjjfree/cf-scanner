@@ -14,23 +14,27 @@ func main() {
 
 	if len(os.Args) == 1 {
 		fmt.Println("\n[提示] 终端已就绪。")
-		fmt.Println("请输入命令： cf-scanner.exe --run (开始默认扫描)")
-		fmt.Print("或者输入： cf-scanner.exe --run -t 100 (指定 100 线程扫描)\n\n")
+		fmt.Println("请输入命令： ./cf-scanner.exe --run (开始默认扫描)")
+		fmt.Print("或者输入： ./cf-scanner.exe -h 查看帮助信息\n\n")
 
-		executable, _ := os.Executable()
+		// 判断操作系统
+		if runtime.GOOS == "windows" {
+			executable, _ := os.Executable()
+			var windowsCmd *exec.Cmd
+			// Windows 环境：使用 cmd /K 保持窗口开启
+			windowsCmd = exec.Command("cmd", "/S", "/K", executable, "-h")
 
-		cmd := exec.Command("cmd", "/S", "/K", executable, "-h")
+			// 将新进程的输入输出直接挂载到当前创建的窗口
+			windowsCmd.Stdout = os.Stdout
+			windowsCmd.Stderr = os.Stderr
+			windowsCmd.Stdin = os.Stdin
 
-		// 将新进程的输入输出直接挂载到当前创建的窗口
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-
-		err := cmd.Run()
-		if err != nil {
-			fmt.Println("启动终端失败:", err)
+			err := windowsCmd.Run()
+			if err != nil {
+				fmt.Println("启动终端失败:", err)
+			}
+			return // 退出父进程，让子进程（CMD）接管
 		}
-		return // 退出父进程，让子进程（CMD）接管
 	}
 
 	cmd.Execute()
