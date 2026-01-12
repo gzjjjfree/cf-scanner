@@ -311,13 +311,18 @@
         canDownload = false,
         isDownloading = false;
 
-      document.getElementById(
-        "log-container"
-      ).innerHTML = `          🟢 已连接到后端实时日志系统...
-          输出的结果文件可以当输入的 IP 列表文件进行精选
-          简单点就把 result.json 的内容覆盖进 ip.txt 即可
-          输出的 json 文件格式是 v2ray 改版 v5-result 读取 IP 池的格式
-          等待扫描开始...`;
+      document.getElementById("log-container").innerHTML = `
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="color: #28a745; font-weight: bold;">[SYSTEM] Connected to backend logs.</span>
+    <p style="margin: 0; color: #666;">文件说明：</p>
+    <div style="padding-left: 12px; border-left: 2px solid #333;">
+       • 结果文件可直接用于 IP 精选<br>
+       • 支持快捷覆盖: <code>result.json</code> → <code>ip.txt</code><br>
+       • 格式适配: <code>v5-result</code> IP 池标准
+    </div>
+    <span style="color: #007bff;">>>> 准备就绪，等待扫描启动...</span>
+  </div>
+`;
 
       // 监听扫描日志
       runtime.EventsOn("scan_log", (msg) => {

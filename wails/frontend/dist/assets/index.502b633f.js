@@ -1,0 +1,33 @@
+(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const n of document.querySelectorAll('link[rel="modulepreload"]'))d(n);new MutationObserver(n=>{for(const o of n)if(o.type==="childList")for(const s of o.addedNodes)s.tagName==="LINK"&&s.rel==="modulepreload"&&d(s)}).observe(document,{childList:!0,subtree:!0});function e(n){const o={};return n.integrity&&(o.integrity=n.integrity),n.referrerpolicy&&(o.referrerPolicy=n.referrerpolicy),n.crossorigin==="use-credentials"?o.credentials="include":n.crossorigin==="anonymous"?o.credentials="omit":o.credentials="same-origin",o}function d(n){if(n.ep)return;n.ep=!0;const o=e(n);fetch(n.href,o)}})();function h(l,t,e){return window.runtime.EventsOnMultiple(l,t,e)}function p(l,t){return h(l,t,-1)}function g(l){return window.go.main.SimpleApp.StartScan(l)}class y{constructor(t,e=1e3){this.container=document.getElementById(t),this.maxLines=e,this.logBuffer=[]}handleWSMessage(t){var d,n;let e=t.data;try{let o,s,r,m;if(t.type==="log"){({leading:o,trailing:s}=this.countEdgeSubstrings(e,`
+`)),{leading:r,trailing:m}=this.countEdgeSubstrings(e,"\r");for(let i=0;i<o;i++)this.appendLine(`
+`);e=e.replaceAll(`
+`,""),e=e.replaceAll("\r","");const u=this.logBuffer.length>0?this.logBuffer.length-1:-1;if(u>=0){r>0?m==0&&(this.logBuffer[u].length==1&&this.appendLine(`
+`),e=`[${new Date().toLocaleTimeString()}] `+e,this.logBuffer[this.logBuffer.length-1]=e):(this.logBuffer[u].length<20&&(e=`[${new Date().toLocaleTimeString()}] `+e),this.logBuffer[u]+=e);for(let i=0;i<s;i++)this.appendLine(`
+`);this.render();return}else e=`[${new Date().toLocaleTimeString()}] `+e,this.appendLine(e);for(let i=0;i<s;i++)this.appendLine(`
+`);this.render()}else t.type==="status"?(((d=t.data)==null?void 0:d.is_scanning)!==void 0&&this.updateUIStatus(t.data.is_scanning,-1),((n=t.data)==null?void 0:n.is_downloading)!==void 0&&this.updateUIStatus(-1,t.data.is_downloading)):t.type==="directions"&&this.appendLine(t.data)}catch{e=`[${new Date().toLocaleTimeString()}] `+e,this.appendLine(e)}}countEdgeSubstrings(t,e){const d=e.replace(/[.*+?^${}()|[\]\ll]/g,"\\$&"),n=new RegExp(`^${d}+`),o=new RegExp(`${d}+$`),s=t.match(n),r=t.match(o);return{leading:s?s[0].length:0,trailing:r?r[0].length:0}}appendLine(t){this.logBuffer.push(t),this.logBuffer.length>this.maxLines&&this.logBuffer.shift()}updateUIStatus(t,e){const d=document.getElementById("startBtn"),n=document.getElementById("stopBtn"),o=document.getElementById("downloadBtn");if(t)d.disabled=!0,n.disabled=!1,o.disabled=!0,a=!0,c=!1;else if(e===-1){d.disabled=!1,n.disabled=!0,o.disabled=!1,a=!0,c=!1,document.getElementById("statusText").innerHTML="\u72B6\u6001: \u5F85\u673A",this.handleWSMessage({type:"log",data:`
+\u2728 \u626B\u63CF\u4EFB\u52A1\u5DF2\u7ED3\u675F\u3002
+`});return}e?(d.disabled=!0,n.disabled=!1,o.disabled=!0):t==-1&&(d.disabled=!1,n.disabled=!0,o.disabled=!1,document.getElementById("statusText").innerHTML="\u72B6\u6001: \u4E0B\u8F7D\u5B8C\u6210",this.handleWSMessage({type:"log",data:`
+\u2728 \u4E0B\u8F7D\u4EFB\u52A1\u5DF2\u7ED3\u675F\u3002
+`}))}render(){this.container.textContent=this.logBuffer.join(""),this.container.scrollTop=this.container.scrollHeight}clear(){this.logBuffer=[],this.container.textContent=""}}const f=new y("log-container");let a=!0,c=!1;document.getElementById("log-container").innerHTML=`
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <span style="color: #28a745; font-weight: bold;">[SYSTEM] Connected to backend logs.</span>
+    <p style="margin: 0; color: #666;">\u6587\u4EF6\u8BF4\u660E\uFF1A</p>
+    <div style="padding-left: 12px; border-left: 2px solid #333;">
+       \u2022 \u7ED3\u679C\u6587\u4EF6\u53EF\u76F4\u63A5\u7528\u4E8E IP \u7CBE\u9009<br>
+       \u2022 \u652F\u6301\u5FEB\u6377\u8986\u76D6: <code>result.json</code> \u2192 <code>ip.txt</code><br>
+       \u2022 \u683C\u5F0F\u9002\u914D: <code>v5-result</code> IP \u6C60\u6807\u51C6
+    </div>
+    <span style="color: #007bff;">>>> \u51C6\u5907\u5C31\u7EEA\uFF0C\u7B49\u5F85\u626B\u63CF\u542F\u52A8...</span>
+  </div>
+`;p("scan_log",l=>{f.handleWSMessage(l)});window.doScan=()=>{const l=document.getElementById("startBtn");l.disabled=!0,document.getElementById("downloadBtn").disabled=!0,document.getElementById("downloadBtn").innerText="\u4E0B\u8F7D\u8BF4\u660E",a=!0,c=!1;const t={Type:"start",Data:{min_speed:document.getElementById("speed").value||5,test_num:document.getElementById("test_num").value||10,min_latency:document.getElementById("latency").value||200,final_count:document.getElementById("count").value||500,nthreads:document.getElementById("nthreads").value||10}};f.clear();try{g(t),document.getElementById("statusText").innerHTML="\u72B6\u6001: \u6B63\u5728\u626B\u63CF"}catch(e){l.disabled=!1,document.getElementById("downloadBtn").disabled=!1,console.error(e)}};window.stopScan=()=>{const l=document.getElementById("stopBtn");l.disabled=!0;const t={Type:"stop"};try{g(t),document.getElementById("statusText").innerHTML="\u72B6\u6001: \u6B63\u5728\u505C\u6B62..."}catch(e){l.disabled=!1,console.error(e)}};window.downloadV5=()=>{const l=document.getElementById("downloadBtn"),t=document.getElementById("startBtn");if(a)c=!0,a=!1,document.getElementById("log-container").innerHTML=`
+    <div style="line-height: 1.6; text-align: left;">
+      <b>\u{1F4E2} \u4E0B\u8F7D\u8BF4\u660E\uFF1A</b><br>
+      1. \u8BE5\u7248\u672C\u4E3A V2ray V5.42.0 \u5B9A\u5236\uFF0C\u652F\u6301\u81EA\u52A8\u751F\u6210\u51FA\u7AD9\u5217\u8868\u3002<br>
+      2. \u9ED8\u8BA4\u8BFB\u53D6\u540C\u7EA7\u76EE\u5F55 <code>result/result*.json</code> \u6587\u4EF6\u3002<br>
+      3. \u51FA\u7AD9 Tag \u5934\u90E8\u9700\u4E3A <code>"cdn-"</code> (\u5982 "cdn-proxy")\u3002<br>
+      4. \u7A0B\u5E8F\u5C06\u81EA\u52A8\u751F\u6210 <code>"cdn-proxy-\u5E8F\u53F7"</code> \u683C\u5F0F\u7684\u5730\u5740\u6C60\u3002<br>
+      <hr>
+      <i>\u5177\u4F53\u8BF4\u660E\u8BF7\u53C2\u8003 v5-result \u9879\u76EE Release\u3002</i><br>
+      <strong>\u70B9\u51FB\u201C\u5F00\u59CB\u4E0B\u8F7D\u201D\u6309\u94AE\u7EE7\u7EED\u3002</strong>
+    </div>
+  `.trim(),l.innerText="\u5F00\u59CB\u4E0B\u8F7D",l.style.backgroundColor="#ffc107",document.getElementById("statusText").innerHTML="\u72B6\u6001: \u67E5\u770B\u8BF4\u660E";else if(c){l.disabled=!0,t.disabled=!0;const e={Type:"download"};try{f.clear(),g(e),document.getElementById("statusText").innerHTML="\u72B6\u6001: \u6B63\u5728\u4E0B\u8F7D"}catch(d){l.disabled=!1,console.error(d)}}};document.getElementById("clearBtn").addEventListener("click",()=>{f.clear()});
