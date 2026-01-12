@@ -96,7 +96,7 @@ jobs:
             chmod -R +x node_modules/.bin/
             find node_modules/vite -type f -name "*" -exec chmod +x {} + 2>/dev/null || true
           fi
-          npx --no-install vite build
+          npm run build
           cd ..
           # 关键点：根据平台判断是否加 .exe
           EXT=""
