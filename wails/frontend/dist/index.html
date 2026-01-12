@@ -13,7 +13,7 @@
         border-radius: 8px;
         text-align: left;
         margin: 20px;
-        font-size: 13px;
+        font-size: 18px;
         line-height: 1.5;
       }
       .log-entry {
@@ -51,18 +51,27 @@
         cursor: not-allowed;
       }
       .status-bar {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        /* 定义 5 列：第一列自动，后四列固定 100px */
+        grid-template-columns: 1fr 200px 200px 200px 200px;
+        gap: 12px;
         align-items: center;
-        margin-bottom: 20px;
-        margin-top: 20px;
+        margin: 20px 0;
+      }
+      .status-bar button {
+        width: 100px; /* 固定宽度 */
+        flex-shrink: 0; /* 禁止按钮被挤压变窄 */
+        white-space: nowrap; /* 禁止文字换行 */
+      }
+      #statusText {
+        grid-column: 1; /* 占据第一列 */
       }
       #log-container {
         /* 核心属性：保留换行符和空格，且允许自动换行 */
-        white-space: pre-wrap;
+        /* white-space: pre-wrap;*/
 
         /* 可选：如果你希望像代码编辑器那样，不自动换行而显示横向滚动条 */
-        /* white-space: pre; */
+        white-space: pre;
 
         /* 建议：确保使用等宽字体，更符合日志风格 */
         font-family: monospace;
@@ -76,7 +85,7 @@
         overflow-y: auto;
       }
     </style>
-    <script type="module" crossorigin src="/assets/index.3d6a77c5.js"></script>
+    <script type="module" crossorigin src="/assets/index.30eef446.js"></script>
   </head>
   <body>
     <h2>CF-Scanner 实时控制台</h2>
@@ -106,7 +115,9 @@
 
     <div class="status-bar">
       <div id="statusText">状态: 待机</div>
-      <button id="downloadBtn">下载说明</button>
+      <button id="downloadBtn" onclick="downloadV5()" class="btn-start">
+        下载说明
+      </button>
       <button id="startBtn" onclick="doScan()" class="btn-start">
         开始扫描
       </button>
@@ -116,7 +127,7 @@
       <button id="clearBtn">清空日志</button>
     </div>
 
-    <div id="log-container"></div>
+    <pre><code><div id="log-container"></div></code></pre>
 
     
   </body>

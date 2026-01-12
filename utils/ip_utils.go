@@ -2,12 +2,15 @@ package utils
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
 	"os"
 	"strings"
+
+	"github.com/schollz/progressbar/v3"
 )
 
 type IPItem struct {
@@ -18,14 +21,52 @@ type IPItem struct {
 // 只要任何类型实现了这个 WriteLog 方法，就可以传参过来使用 WriteLog 方法
 type Logger interface {
 	WriteLog(string)
+	GetTheme() progressbar.Theme
 }
 
-func ParseIP(ipFile string, testCount int, l Logger) ([][]string, int) {
+type UtilsLogger struct {
+	Theme progressbar.Theme
+	Ctx   context.Context
+}
+
+// 让 WebLogger 实现 WriteLog 方法
+func (w UtilsLogger) WriteLog(msg string) {
+	fmt.Println(msg)
+}
+
+func (w UtilsLogger) GetTheme() progressbar.Theme {
+	return w.Theme
+}
+
+var BridgeLogger = UtilsLogger{
+	Theme: progressbar.Theme{
+		Saucer:        "=",
+		SaucerHead:    ">",
+		SaucerPadding: " ",
+		BarStart:      "[",
+		BarEnd:        "]",
+	},
+}
+
+type writerWrapper struct {
+	l Logger
+}
+
+func (w writerWrapper) Write(p []byte) (n int, err error) {
+	// 将进度条发送过来的 []byte 转换为 string，并调用你的接口方法
+	msg := string(p)
+
+	w.l.WriteLog(msg)
+
+	return len(p), nil
+}
+
+func ParseIP(ctx context.Context, ipFile string, testCount int, l Logger) ([][]string, int) {
 	// 读取并解析 IP 段文件
 	cidrList, isJSONInput, err := ReadLines(ipFile)
 	if err != nil {
 		l.WriteLog(fmt.Sprintln("读取 IP 文件出错, 正下载 IP 文件重新读取......！"))
-		derr := DownloadFile("https://www.cloudflare.com/ips-v4", "ip.txt")
+		derr := DownloadFile(ctx, "https://www.cloudflare.com/ips-v4", "ip.txt", BridgeLogger)
 		if derr != nil {
 			l.WriteLog(fmt.Sprintf("无法下载 IP 文件: %v\n请多尝试几次或自行下载: https://www.cloudflare.com/ips-v4", derr))
 			return nil, 0

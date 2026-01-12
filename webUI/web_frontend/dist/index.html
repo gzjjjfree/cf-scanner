@@ -280,6 +280,7 @@
       const statusText = document.getElementById("statusText");
       const logBox = document.getElementById("logBox");
       const Logmsg = new LogHandler("logBox");
+      let downloadStatus = "";
 
       let socket;
 
@@ -373,8 +374,9 @@
       }
 
       // 发送下载指令
-      function downloadScan() {
+      downloadBtn.onclick = function downloadScan() {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        Logmsg.clear();
 
         const command = {
           Type: "download",

@@ -4,7 +4,7 @@
 
 # cf-scanner
 
-![Build Status](https://img.shields.io/github/actions/workflow/status/gzjjjfree/cf-scanner/release.yml?branch=main&style=flat-square)
+![Build Status](https://img.shields.io/github/actions/workflow/status/gzjjjfree/cf-scanner/release-all.yml?branch=main&style=flat-square)
 
 ![Latest Release](https://img.shields.io/github/v/release/gzjjjfree/cf-scanner?style=flat-square&color=blue)
 

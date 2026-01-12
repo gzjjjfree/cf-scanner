@@ -13,7 +13,7 @@
         border-radius: 8px;
         text-align: left;
         margin: 20px;
-        font-size: 13px;
+        font-size: 18px;
         line-height: 1.5;
       }
       .log-entry {
@@ -51,18 +51,27 @@
         cursor: not-allowed;
       }
       .status-bar {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        /* 定义 5 列：第一列自动，后四列固定 100px */
+        grid-template-columns: 1fr 200px 200px 200px 200px;
+        gap: 12px;
         align-items: center;
-        margin-bottom: 20px;
-        margin-top: 20px;
+        margin: 20px 0;
+      }
+      .status-bar button {
+        width: 100px; /* 固定宽度 */
+        flex-shrink: 0; /* 禁止按钮被挤压变窄 */
+        white-space: nowrap; /* 禁止文字换行 */
+      }
+      #statusText {
+        grid-column: 1; /* 占据第一列 */
       }
       #log-container {
         /* 核心属性：保留换行符和空格，且允许自动换行 */
-        white-space: pre-wrap;
+        /* white-space: pre-wrap;*/
 
         /* 可选：如果你希望像代码编辑器那样，不自动换行而显示横向滚动条 */
-        /* white-space: pre; */
+        white-space: pre;
 
         /* 建议：确保使用等宽字体，更符合日志风格 */
         font-family: monospace;
@@ -105,7 +114,9 @@
 
     <div class="status-bar">
       <div id="statusText">状态: 待机</div>
-      <button id="downloadBtn">下载说明</button>
+      <button id="downloadBtn" onclick="downloadV5()" class="btn-start">
+        下载说明
+      </button>
       <button id="startBtn" onclick="doScan()" class="btn-start">
         开始扫描
       </button>
@@ -115,7 +126,7 @@
       <button id="clearBtn">清空日志</button>
     </div>
 
-    <div id="log-container"></div>
+    <pre><code><div id="log-container"></div></code></pre>
 
     <script type="module">
       // 导入 Wails 运行时库
@@ -191,7 +202,16 @@
               }
               this.render();
             } else if (msg.type === "status") {
-              this.updateUIStatus(msg.data.is_scanning);
+              // 只有当 is_scanning 明确不为 undefined/null 时才执行
+              if (msg.data?.is_scanning !== undefined) {
+                this.updateUIStatus(msg.data.is_scanning, -1);
+              }
+
+              if (msg.data?.is_downloading !== undefined) {
+                this.updateUIStatus(-1, msg.data.is_downloading);
+              }
+            } else if (msg.type === "directions") {
+              this.appendLine(msg.data);
             }
           } catch {
             // 如果不是 JSON，兼容处理成纯文本日志
@@ -228,17 +248,44 @@
         }
 
         // 更新界面按钮状态
-        updateUIStatus(isScanning) {
+        updateUIStatus(isScanning, isDownloading) {
           const startBtn = document.getElementById("startBtn");
           const stopBtn = document.getElementById("stopBtn");
+          const downloadBtn = document.getElementById("downloadBtn");
 
           if (isScanning) {
             startBtn.disabled = true;
             stopBtn.disabled = false;
-          } else {
+            downloadBtn.disabled = true;
+            showMsg = true;
+            canDownload = false;
+          } else if (isDownloading === -1) {
             startBtn.disabled = false;
             stopBtn.disabled = true;
-            this.processLog("\n✨ 扫描任务已结束。\n");
+            downloadBtn.disabled = false;
+            showMsg = true;
+            canDownload = false;
+            document.getElementById("statusText").innerHTML = "状态: 待机";
+            this.handleWSMessage({
+              type: "log",
+              data: "\n✨ 扫描任务已结束。\n",
+            });
+            return;
+          }
+
+          if (isDownloading) {
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            downloadBtn.disabled = true;
+          } else if (isScanning == -1) {
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            downloadBtn.disabled = false;
+            document.getElementById("statusText").innerHTML = "状态: 下载完成";
+            this.handleWSMessage({
+              type: "log",
+              data: "\n✨ 下载任务已结束。\n",
+            });
           }
         }
 
@@ -259,28 +306,18 @@
 
       const Logmsg = new LogHandler("log-container");
       const getContainer = () => document.getElementById("log-container");
-      let isScanning = false;
+      let isScanning = false,
+        showMsg = true,
+        canDownload = false,
+        isDownloading = false;
 
-      Logmsg.handleWSMessage({
-        type: "log",
-        data: `[${new Date().toLocaleTimeString()}] "🟢 已连接到后端实时日志系统...\n"`,
-      });
-      Logmsg.handleWSMessage({
-        type: "log",
-        data: "输出的结果文件可以当输入的 IP 列表文件进行精选\n",
-      });
-      Logmsg.handleWSMessage({
-        type: "log",
-        data: "简单点就把 result.json 的内容覆盖进 ip.txt 即可\n",
-      });
-      Logmsg.handleWSMessage({
-        type: "log",
-        data: "输出的 json 文件格式是 v2ray 改版 v5-result 读取 IP 池的格式\n",
-      });
-      Logmsg.handleWSMessage({
-        type: "log",
-        data: "等待扫描开始...\n",
-      });
+      document.getElementById(
+        "log-container"
+      ).innerHTML = `          🟢 已连接到后端实时日志系统...
+          输出的结果文件可以当输入的 IP 列表文件进行精选
+          简单点就把 result.json 的内容覆盖进 ip.txt 即可
+          输出的 json 文件格式是 v2ray 改版 v5-result 读取 IP 池的格式
+          等待扫描开始...`;
 
       // 监听扫描日志
       runtime.EventsOn("scan_log", (msg) => {
@@ -290,6 +327,10 @@
       window.doScan = () => {
         const startBtn = document.getElementById("startBtn");
         startBtn.disabled = true; // 立即变灰，防止连点
+        document.getElementById("downloadBtn").disabled = true;
+        document.getElementById("downloadBtn").innerText = "下载说明";
+        showMsg = true;
+        canDownload = false;
 
         const command = {
           Type: "start",
@@ -306,23 +347,68 @@
         // 调用 Go 方法
         try {
           StartScan(command);
+          document.getElementById("statusText").innerHTML = "状态: 正在扫描";
         } catch (err) {
           startBtn.disabled = false; // 出错则恢复
+          document.getElementById("downloadBtn").disabled = false;
           console.error(err);
         }
       };
 
       window.stopScan = () => {
+        const stopBtn = document.getElementById("stopBtn");
+        stopBtn.disabled = true;
         const command = {
           Type: "stop",
         };
         try {
           StartScan(command);
+          document.getElementById("statusText").innerHTML = "状态: 正在停止...";
         } catch (err) {
           stopBtn.disabled = false; // 出错则恢复
           console.error(err);
         }
       };
+
+      window.downloadV5 = () => {
+        const downloadBtn = document.getElementById("downloadBtn");
+        const startBtn = document.getElementById("startBtn");
+        //downloadBtn.disabled = true;
+        if (showMsg) {
+          canDownload = true;
+          showMsg = false;
+          document.getElementById("log-container").innerHTML = `
+    <div style="line-height: 1.6; text-align: left;">
+      <b>📢 下载说明：</b><br>
+      1. 该版本为 V2ray V5.42.0 定制，支持自动生成出站列表。<br>
+      2. 默认读取同级目录 <code>result/result*.json</code> 文件。<br>
+      3. 出站 Tag 头部需为 <code>"cdn-"</code> (如 "cdn-proxy")。<br>
+      4. 程序将自动生成 <code>"cdn-proxy-序号"</code> 格式的地址池。<br>
+      <hr>
+      <i>具体说明请参考 v5-result 项目 Release。</i><br>
+      <strong>点击“开始下载”按钮继续。</strong>
+    </div>
+  `.trim();
+          downloadBtn.innerText = "开始下载";
+          downloadBtn.style.backgroundColor = "#ffc107";
+          document.getElementById("statusText").innerHTML = "状态: 查看说明";
+        } else if (canDownload) {
+          downloadBtn.disabled = true;
+          startBtn.disabled = true;
+          const command = {
+            Type: "download",
+          };
+          try {
+            Logmsg.clear();
+            StartScan(command);
+            document.getElementById("statusText").innerHTML = "状态: 正在下载";
+          } catch (err) {
+            downloadBtn.disabled = false; // 出错则恢复
+            console.error(err);
+          }
+        }
+      };
+
       document.getElementById("clearBtn").addEventListener("click", () => {
         Logmsg.clear();
       });

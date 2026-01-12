@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -48,17 +49,39 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		scanner.StatusMutex.Lock()
+		var ctx context.Context
+		ctx, scanner.CancelScan = context.WithCancel(context.Background())
+		scanner.StatusMutex.Unlock()
+
+		keyDone := make(chan struct{})
+		// 启动一个后台协程专门盯着键盘
+		go scanner.ListenForStopKey(ctx, scanner.CancelScan, keyDone)
+
 		// 优先处理版本号逻辑
 		if scanner.Conf.DownloadV5 {
-			fmt.Printf("正在下载 v5-result\n")
-			exePath, err := os.Executable()
-			if err == nil {
-				fmt.Println("下载目录在: ", exePath)
-			}
-			targetURL := utils.GetDownloadURL("https://github.com/gzjjjfree/v5-result/releases/download", "custom-build", "v5-result") // 这里可以换成你动态获取的最新版本号
+			//os.Setenv("HTTP_PROXY", "http://127.0.0.1:10814")
+			//os.Setenv("HTTPS_PROXY", "http://127.0.0.1:10814")
 
+			fmt.Printf("正在下载 v5-result\n")
+			targetURL := utils.GetDownloadURL("https://github.com/gzjjjfree/v5-result/releases/download", "custom-build", "v5-result") // 这里可以换成你动态获取的最新版本号
 			fileName := path.Base(targetURL)
-			utils.DownloadFile(targetURL, fileName)
+
+			// 1. 获取可执行文件所在的目录
+			exePath, _ := os.Executable()
+			exeDir := filepath.Dir(exePath) // 获取 /home/.../build/bin 这个目录
+
+			// 2. 拼接完整的目标路径
+			fullPath := filepath.Join(exeDir, fileName)
+			fmt.Println("下载目录在: ", exeDir)
+			err := utils.DownloadFile(ctx, targetURL, fullPath, BridgeLogger)
+			if err == nil {
+				fmt.Println(utils.DownloadMsg)
+			}
+			os.Setenv("HTTP_PROXY", "")
+			os.Setenv("HTTPS_PROXY", "")
+			scanner.CancelScan()
+			<-keyDone // 阻塞等待，直到 keyboard.Close() 执行完毕
 			return
 		}
 
@@ -80,21 +103,15 @@ var rootCmd = &cobra.Command{
 		fmt.Printf("   [过滤]: 延迟 <%dms, 最低下载速度 >%v, 保留的数量 %v \n\n", scanner.Conf.MinLatency, scanner.Conf.MinSpeed, scanner.Conf.FinalCount)
 
 		scanner.StatusMutex.Lock()
-		var ctx context.Context
-		ctx, scanner.CancelScan = context.WithCancel(context.Background())
 		scanner.Status.WaitStop = false
 		scanner.StatusMutex.Unlock()
 
 		// 对 IP 段进行随机抽样
-		ipGroups, actualTaskCount := utils.ParseIP(scanner.Conf.FilePath, scanner.Conf.TestNum, BridgeLogger)
+		ipGroups, actualTaskCount := utils.ParseIP(ctx, scanner.Conf.FilePath, scanner.Conf.TestNum, BridgeLogger)
 		if actualTaskCount <= 0 {
 			fmt.Println("读取 IP 文件出错，结束扫描！")
 			return
 		}
-
-		keyDone := make(chan struct{})
-		// 启动一个后台协程专门盯着键盘
-		go scanner.ListenForStopKey(ctx, scanner.CancelScan, keyDone)
 
 		// 扫描延迟
 		finalResults := scanner.RunScanPool(ctx, ipGroups, scanner.Conf.NThreads, scanner.Conf.SniDomain, scanner.Conf.MinLatency, actualTaskCount, BridgeLogger)

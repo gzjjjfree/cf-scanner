@@ -4,9 +4,13 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 
 	"github.com/gzjjjfree/cf-scanner/cmd"
 	"github.com/gzjjjfree/cf-scanner/scanner"
+	"github.com/gzjjjfree/cf-scanner/utils"
 	"github.com/schollz/progressbar/v3"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -22,12 +26,12 @@ func main() {
 	wailsapp := NewApp()
 
 	err := wails.Run(&options.App{
-		Title: fmt.Sprint("CF-Scanner Wails版       版本: ", cmd.Version),
+		Title: fmt.Sprint("CF-Scanner    Wails: ", cmd.Version),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
 		OnStartup: wailsapp.Startup,
-		Bind: []interface{}{
+		Bind: []any{
 			wailsapp,
 		},
 	})
@@ -60,7 +64,7 @@ func (s *SimpleApp) Greet(name string) string {
 }
 
 // StartScan 模拟你的 cf-scanner 扫描过程
-func (a *SimpleApp) StartScan(cmd WSMessage) {	
+func (a *SimpleApp) StartScan(cmd WSMessage) {
 	switch cmd.Type {
 	case "start":
 		// 首先断言 cmd.Data 是一个 map
@@ -72,21 +76,69 @@ func (a *SimpleApp) StartScan(cmd WSMessage) {
 			}
 			runtime.EventsEmit(a.ctx, "scan_log", content)
 			scanner.Status.IsRunning = false
-			broadcastStatus(a.ctx, false)
+			broadcastStatus(a.ctx, "is_scanning", scanner.Status.IsRunning)
 		}
+
+		scanner.StatusMutex.Lock()
+		if scanner.CancelScan != nil {
+			fmt.Println("有任务在执行, 取消旧任务...")
+			scanner.CancelScan()
+		}
+		var appCtx context.Context
+		appCtx, scanner.CancelScan = context.WithCancel(a.ctx)
+		BridgeLogger.Ctx = appCtx
+		scanner.StatusMutex.Unlock()
 
 		// 创建一个真正的 map[string]string
 		cleanParams := make(map[string]string)
 		for k, v := range rawParams {
 			// 将 any 转换为 string（处理字符串、数字、布尔等）
 			cleanParams[k] = fmt.Sprintf("%v", v)
-		}		
+		}
 		// 你可以从 cmd.Type 中提取前端传来的参数
-		go startScanWorkflow(a, cleanParams)
-		
+		go startScanWorkflow(appCtx, cleanParams)
+
 	case "stop":
 		scanner.Status.WaitStop = true
 		a.stopScan()
+	case "download":
+		//os.Setenv("HTTP_PROXY", "http://127.0.0.1:10814")
+		//os.Setenv("HTTPS_PROXY", "http://127.0.0.1:10814")
+		//fmt.Println("https_proxy", os.Getenv("HTTPS_PROXY"))
+
+		targetURL := utils.GetDownloadURL("https://github.com/gzjjjfree/v5-result/releases/download", "custom-build", "v5-result") // 这里可以换成你动态获取的最新版本号
+		fileName := path.Base(targetURL)
+
+		// 1. 获取可执行文件所在的目录
+		exePath, _ := os.Executable()
+		exeDir := filepath.Dir(exePath) // 获取 /home/.../build/bin 这个目录
+
+		// 2. 拼接完整的目标路径
+		fullPath := filepath.Join(exeDir, fileName)
+
+		scanner.StatusMutex.Lock()
+		if scanner.CancelScan != nil {
+			fmt.Println("有任务在执行, 取消旧任务...")
+			scanner.CancelScan()
+		}
+		var appCtx context.Context
+		appCtx, scanner.CancelScan = context.WithCancel(a.ctx)
+		BridgeLogger.Ctx = appCtx
+		scanner.StatusMutex.Unlock()
+
+		BridgeLogger.WriteLog("正在下载 v5-result\n")
+		BridgeLogger.WriteLog(fmt.Sprintln("下载目录在: ", exeDir))
+
+		go func(ctx context.Context) {
+			broadcastStatus(ctx, "is_downloading", true)
+			err := utils.DownloadFile(ctx, targetURL, fullPath, BridgeLogger)
+			os.Setenv("HTTP_PROXY", "")
+			os.Setenv("HTTPS_PROXY", "")
+			if err == nil {
+				runtime.EventsEmit(ctx, "scan_log", WSMessage{Type: "directions", Data: utils.DownloadMsg})				
+			}
+			broadcastStatus(ctx, "is_downloading", false)
+		}(appCtx)
 	}
 }
 
@@ -95,7 +147,8 @@ func (a *SimpleApp) stopScan() {
 	defer scanner.StatusMutex.Unlock()
 	if scanner.CancelScan != nil {
 		scanner.CancelScan() // 触发取消信号
-		runtime.EventsEmit(a.ctx, "scan_log", "\n🛑 正在通过 WebSocket 指令停止任务...\n")
+		scanner.CancelScan = nil
+		runtime.EventsEmit(a.ctx, "scan_log", WSMessage{Type: "log", Data: "\n🛑 正在通过 CancelScan() 指令停止任务...\n"})
 	}
 }
 

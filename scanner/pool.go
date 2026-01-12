@@ -114,23 +114,6 @@ func RunScanPool(ctx context.Context, ipGroups [][]string, workerCount int, doma
 	return finalResults
 }
 
-// 打印旋转图标的方法
-func startSpinner(ctx context.Context, spinnerChars []string) {
-	i := 0
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			// 使用 \r 回到行首，打印图标
-			// 注意：如果后面有进度条，需确保不会覆盖掉进度条的内容
-			fmt.Printf("\r%s ", spinnerChars[i%len(spinnerChars)])
-			i++
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-}
-
 // 启动测速
 func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed float64, finalResults []FinalResult, l Logger) []FinalResult {
 	var finalSorted []FinalResult

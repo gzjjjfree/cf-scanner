@@ -29,16 +29,15 @@ type WSMessage struct {
 }
 
 // 启动流程
-func startScanWorkflow(a *SimpleApp, params map[string]string) {
+func startScanWorkflow(appCtx context.Context, params map[string]string) {
 	scanner.StatusMutex.Lock()
 	if scanner.Status.IsRunning {
 		scanner.StatusMutex.Unlock()
 		return
 	}
-	var appCtx context.Context
+	
 	scanner.Status.IsRunning = true
 	scanner.Status.WaitStop = false
-	appCtx, scanner.CancelScan = context.WithCancel(a.ctx)
 	scanner.StatusMutex.Unlock()
 
 	// 转换 Threads (string -> int)
@@ -83,24 +82,22 @@ func startScanWorkflow(a *SimpleApp, params map[string]string) {
 
 func runScannerLogic(appCtx context.Context, conf scanner.ScanConfig) {
 	// 告诉前端：扫描开始！
-	broadcastStatus(appCtx, scanner.Status.IsRunning)
+	broadcastStatus(appCtx, "is_scanning", scanner.Status.IsRunning)
 	// 无论正常结束还是取消，最后都告诉前端：停下来。
 	defer func() {
-		scanner.StatusMutex.Lock()
-		defer scanner.StatusMutex.Unlock()
+		scanner.StatusMutex.Lock()		
 		scanner.Status.IsRunning = false
 		scanner.Status.WaitStop = false
-		broadcastStatus(appCtx, scanner.Status.IsRunning)
+		scanner.StatusMutex.Unlock()
+		broadcastStatus(appCtx, "is_scanning", scanner.Status.IsRunning)
 	}()
 
 	// 扫描过程
-	BridgeLogger.Ctx = appCtx
-
 	BridgeLogger.WriteLog("🚀 扫描任务启动...\n")
 	BridgeLogger.WriteLog(fmt.Sprintf("[文件]: %s  [并发]: %d  [抽样]: %d/段  [目标]: %s\n", conf.FilePath, conf.NThreads, conf.TestNum, conf.SniDomain))
 	BridgeLogger.WriteLog(fmt.Sprintf("[过滤]: 延迟 <%dms, 最低下载速度 >%v, 保留的数量 %v \n\n", conf.MinLatency, conf.MinSpeed, conf.FinalCount))
 
-	ipGroups, actualTaskCount := utils.ParseIP(conf.FilePath, conf.TestNum, BridgeLogger)
+	ipGroups, actualTaskCount := utils.ParseIP(appCtx, conf.FilePath, conf.TestNum, BridgeLogger)
 	if actualTaskCount <= 0 {
 		BridgeLogger.WriteLog(fmt.Sprintln("读取 IP 文件出错，结束扫描！"))
 		return
@@ -116,8 +113,6 @@ func runScannerLogic(appCtx context.Context, conf scanner.ScanConfig) {
 	scanner.StatusMutex.Lock()
 	if scanner.Status.WaitStop {
 		defer scanner.StatusMutex.Unlock()
-		scanner.Status.IsRunning = false
-		scanner.Status.WaitStop = false
 		return
 	}
 	scanner.StatusMutex.Unlock()
@@ -159,12 +154,11 @@ func runScannerLogic(appCtx context.Context, conf scanner.ScanConfig) {
 }
 
 // 发送状态更新（在扫描开始和结束时调用）
-func broadcastStatus(ctx context.Context, isScanning bool) {
+func broadcastStatus(ctx context.Context, parameter string, state bool) {
 	msg := WSMessage{
 		Type: "status",
-		Data: map[string]bool{"is_scanning": isScanning},
+		Data: map[string]bool{parameter: state},
 	}
 
 	runtime.EventsEmit(ctx, "scan_log", msg)
-	scanner.Status.IsRunning = isScanning
 }

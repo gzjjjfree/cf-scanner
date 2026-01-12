@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: "1.24.4", cache: true }
+        with: { go-version: "1.25.5", cache: true }
       - name: Build
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
@@ -38,30 +38,30 @@ jobs:
           path: release/*
 
   # --- 任务 2: 构建 Lorca (GUI) 版本 ---
-  build-lorca:
-    name: Build Lorca
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - {os: windows-latest, platform: windows, name: cf-scanner-lorca-win.exe}
-          - {os: macos-latest, platform: macos, name: cf-scanner-lorca-mac}
-          - {os: ubuntu-latest, platform: linux, name: cf-scanner-lorca-linux}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with: { go-version: "1.24.4" }
-      - name: Build
-        shell: bash
-        run: |
-          cd lorca
-          LDFLAGS="-s -w"
-          if [ "${{ matrix.platform }}" == "windows" ]; then LDFLAGS="$LDFLAGS -H=windowsgui"; fi
-          go build -ldflags "$LDFLAGS" -o "${{ matrix.name }}" .
-      - uses: actions/upload-artifact@v4
-        with:
-          name: lorca-${{ matrix.platform }}
-          path: lorca/${{ matrix.name }}
+  #build-lorca:
+  #  name: Build Lorca
+  #  runs-on: ${{ matrix.os }}
+  #  strategy:
+  #    matrix:
+  #      include:
+  #        - {os: windows-latest, platform: windows, name: cf-scanner-lorca-win.exe}
+  #        - {os: macos-latest, platform: macos, name: cf-scanner-lorca-mac}
+  #        - {os: ubuntu-latest, platform: linux, name: cf-scanner-lorca-linux}
+  #  steps:
+  #    - uses: actions/checkout@v4
+  #    - uses: actions/setup-go@v5
+  #      with: { go-version: "1.25.5" }
+  #    - name: Build
+  #      shell: bash
+  #      run: |
+  #        cd lorca
+  #        LDFLAGS="-s -w"
+  #        if [ "${{ matrix.platform }}" == "windows" ]; then LDFLAGS="$LDFLAGS -H=windowsgui"; fi
+  #        go build -ldflags "$LDFLAGS -X 'github.com/gzjjjfree/cf-scanner/cmd.Version=${TAG_NAME}'" -o "${{ matrix.name }}" .
+  #    - uses: actions/upload-artifact@v4
+  #      with:
+  #        name: lorca-${{ matrix.platform }}
+  #        path: lorca/${{ matrix.name }}
 
   # --- 任务 3: 构建 Wails (GUI) 版本 ---
   build-wails:
@@ -76,7 +76,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: "1.24.4" }
+        with: { go-version: "1.25.5" }
       - uses: actions/setup-node@v4
         with: { node-version: 18 }
       - name: Linux Deps
@@ -99,7 +99,7 @@ jobs:
           # 关键点：根据平台判断是否加 .exe
           EXT=""
           if [ "${{ matrix.os }}" == "windows-latest" ]; then EXT=".exe"; fi
-          wails build -platform ${{ matrix.platform }} -ldflags "-s -w" -o "cf-scanner-wailsUI-${{ matrix.tag }}$EXT"
+          wails build -platform ${{ matrix.platform }} -ldflags "-s -w -X 'github.com/gzjjjfree/cf-scanner/cmd.Version=${TAG_NAME}'" -o "cf-scanner-wailsUI-${{ matrix.tag }}$EXT"
           # --- 针对 macOS 的特殊处理 ---
           if [ "${{ matrix.os }}" == "macos-latest" ]; then
             # Wails 在 mac 上通常会生成 build/bin/cf-scanner-wailsUI-mac.app
@@ -163,7 +163,7 @@ jobs:
   # --- 任务 5: 汇总并正式发布 ---
   publish:
     name: Finalize Release
-    needs: [build-cli, build-lorca, build-wails]
+    needs: [build-cli, build-wails]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -178,6 +178,17 @@ jobs:
         with:
           files: ./all-files/*
           generate_release_notes: true
-          append_body: true
+          body: |
+            ### 📝 使用说明
+            * 输出的结果文件可以当输入的 IP 列表文件进行精选。
+            * 简单点就把 `result.json` 的内容覆盖进 `ip.txt` 即可。
+            * 输出的 JSON 文件格式是 v2ray 改版 `v5-result` 读取 IP 池的格式。
+
+            ---
+            * 建议使用 CLI 版本。
+            > [!TIP]
+            > **Linux 用户中文显示异常？**
+            > 请执行以下命令安装中文字体：
+            > `sudo apt install -y fonts-wqy-microhei`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
