@@ -89,12 +89,14 @@ jobs:
       - name: Build
         shell: bash
         run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
           cd wails/frontend
           npm install
           if [ "${{ matrix.os }}" != "windows-latest" ]; then
             chmod -R +x node_modules/.bin/
+            find node_modules/vite -type f -name "*" -exec chmod +x {} + 2>/dev/null || true
           fi
-          npm run build
+          npx --no-install vite build
           cd ..
           # 关键点：根据平台判断是否加 .exe
           EXT=""
