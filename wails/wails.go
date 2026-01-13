@@ -102,10 +102,6 @@ func (a *SimpleApp) StartScan(cmd WSMessage) {
 		scanner.Status.WaitStop = true
 		a.stopScan()
 	case "download":
-		//os.Setenv("HTTP_PROXY", "http://127.0.0.1:10814")
-		//os.Setenv("HTTPS_PROXY", "http://127.0.0.1:10814")
-		//fmt.Println("https_proxy", os.Getenv("HTTPS_PROXY"))
-
 		targetURL := utils.GetDownloadURL("https://github.com/gzjjjfree/v5-result/releases/download", "custom-build", "v5-result") // 这里可以换成你动态获取的最新版本号
 		fileName := path.Base(targetURL)
 
@@ -132,8 +128,6 @@ func (a *SimpleApp) StartScan(cmd WSMessage) {
 		go func(ctx context.Context) {
 			broadcastStatus(ctx, "is_downloading", true)
 			err := utils.DownloadFile(ctx, targetURL, fullPath, BridgeLogger)
-			os.Setenv("HTTP_PROXY", "")
-			os.Setenv("HTTPS_PROXY", "")
 			if err == nil {
 				runtime.EventsEmit(ctx, "scan_log", WSMessage{Type: "directions", Data: utils.DownloadMsg})				
 			}

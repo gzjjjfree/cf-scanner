@@ -91,10 +91,12 @@ func TestSpeed(parentCtx context.Context, ip string, domain string, timeout time
 	// 修正 domain 参数, 去掉 https:// 或 http:// 协议头
 	cleanDomain := strings.TrimPrefix(domain, "https://")
 	cleanDomain = strings.TrimPrefix(cleanDomain, "http://")
-
+	var hostDomain string
+	fmt.Println(domain)
+	fmt.Println(cleanDomain)
 	// 截取第一个 "/" 之前的部分（即获取纯域名/主机名）
 	if idx := strings.Index(cleanDomain, "/"); idx != -1 {
-		cleanDomain = cleanDomain[:idx]
+		hostDomain = cleanDomain[:idx]
 	}
 
 	// 创建一个自定义的传输层
@@ -103,7 +105,7 @@ func TestSpeed(parentCtx context.Context, ip string, domain string, timeout time
 			// 这一行非常重要：跳过证书过期、域名不匹配等所有校验
 			InsecureSkipVerify: true,
 			// 记得带上 SNI
-			ServerName: cleanDomain,
+			ServerName: hostDomain,
 		},
 		// 核心逻辑：强制将所有连接指向指定的测速 IP
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -120,10 +122,10 @@ func TestSpeed(parentCtx context.Context, ip string, domain string, timeout time
 
 	// 构造下载请求
 	// 建议在服务器上放一个 100MB 的测试文件，如果没有，可以暂时请求主页
-	url := fmt.Sprintf("https://%s", domain)
+	url := fmt.Sprintf("https://%s", cleanDomain)
 	req, _ := http.NewRequest("GET", url, nil)
 	// 必须手动指定 Host，这要和你的域名完全一致
-	req.Host = cleanDomain
+	req.Host = hostDomain
 	// 补齐模拟浏览器的头部
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")

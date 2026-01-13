@@ -60,9 +60,6 @@ var rootCmd = &cobra.Command{
 
 		// 优先处理版本号逻辑
 		if scanner.Conf.DownloadV5 {
-			//os.Setenv("HTTP_PROXY", "http://127.0.0.1:10814")
-			//os.Setenv("HTTPS_PROXY", "http://127.0.0.1:10814")
-
 			fmt.Printf("正在下载 v5-result\n")
 			targetURL := utils.GetDownloadURL("https://github.com/gzjjjfree/v5-result/releases/download", "custom-build", "v5-result") // 这里可以换成你动态获取的最新版本号
 			fileName := path.Base(targetURL)
@@ -78,8 +75,6 @@ var rootCmd = &cobra.Command{
 			if err == nil {
 				fmt.Println(utils.DownloadMsg)
 			}
-			os.Setenv("HTTP_PROXY", "")
-			os.Setenv("HTTPS_PROXY", "")
 			scanner.CancelScan()
 			<-keyDone // 阻塞等待，直到 keyboard.Close() 执行完毕
 			return

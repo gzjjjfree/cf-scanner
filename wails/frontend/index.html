@@ -111,6 +111,10 @@
         <input type="number" id="count" value="10" style="width: 40px"
       /></label>
     </div>
+    <div><label
+        >测速文件:
+        <input type="url" id="domain" value="speed.cloudflare.com/__down?bytes=100000000" style="width: 400px"
+      /></label></div>
 
     <div class="status-bar">
       <div id="statusText">状态: 待机</div>
@@ -345,6 +349,7 @@
             min_latency: document.getElementById("latency").value || 200,
             final_count: document.getElementById("count").value || 500,
             nthreads: document.getElementById("nthreads").value || 10,
+            sni_domain: document.getElementById("domain").value || "speed.cloudflare.com/__down?bytes=100000000",
           },
         };
 

@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"net/url"
 	"sync"
 	"time"
 
@@ -88,7 +89,7 @@ func (conf *ScanConfig) Check() {
 		conf.FilePath = "ip.txt" // 给予默认值
 	}
 
-	if conf.SniDomain == "" {
+	if !IsValidURL(conf.SniDomain) {
 		conf.SniDomain = "speed.cloudflare.com/__down?bytes=100000000" // 给予默认值
 	}
 
@@ -99,4 +100,13 @@ func (conf *ScanConfig) Check() {
 	if conf.JsonPath == "" {
 		conf.JsonPath = "okresult.json" // 给予默认值
 	}
+}
+
+func IsValidURL(str string) bool {
+	u, err := url.Parse(str)
+	// 解析出错、协议为空、或主机名为空，都视为非法
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return false
+	}
+	return true
 }
