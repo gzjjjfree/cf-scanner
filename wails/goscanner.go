@@ -35,7 +35,7 @@ func startScanWorkflow(appCtx context.Context, params map[string]string) {
 		scanner.StatusMutex.Unlock()
 		return
 	}
-
+	
 	scanner.Status.IsRunning = true
 	scanner.Status.WaitStop = false
 	scanner.StatusMutex.Unlock()
@@ -80,7 +80,7 @@ func startScanWorkflow(appCtx context.Context, params map[string]string) {
 	}
 
 	scanner.Conf.Check()
-
+	
 	runScannerLogic(appCtx, scanner.Conf)
 }
 

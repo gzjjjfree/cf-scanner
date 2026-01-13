@@ -6,12 +6,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
-	"time"
 
 	"github.com/gzjjjfree/cf-scanner/scanner"
 	"github.com/gzjjjfree/cf-scanner/utils"
-	"github.com/gzjjjfree/cf-scanner/webUI"
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 )
@@ -30,18 +27,18 @@ var rootCmd = &cobra.Command{
 		scanner.Conf.Check()
 
 		// 是否显示 Web GUI
-		if scanner.Conf.ShowWeb && runtime.GOOS != "linux" {
-			// 在另一个线程启动 Web 服务，防止阻塞
-			go func() {
-				webUI.Makeweb()
-			}()
-
-			// 给服务器一点启动时间（比如 500ms），然后打开浏览器
-			time.Sleep(time.Millisecond * 500)
-			webUI.OpenBrowser("http://127.0.0.1:8090")
-			// 保持主进程不退出
-			select {}
-		}
+		//if scanner.Conf.ShowWeb && runtime.GOOS != "linux" {
+		//	// 在另一个线程启动 Web 服务，防止阻塞
+		//	go func() {
+		//		webUI.Makeweb()
+		//	}()
+		//
+		//	// 给服务器一点启动时间（比如 500ms），然后打开浏览器
+		//	time.Sleep(time.Millisecond * 500)
+		//	webUI.OpenBrowser("http://127.0.0.1:8090")
+		//	// 保持主进程不退出
+		//	select {}
+		//}
 
 		// 优先处理版本号逻辑
 		if scanner.Conf.ShowVer {
@@ -192,7 +189,7 @@ func init() {
 
 	// 4. 其他
 	rootCmd.Flags().BoolVarP(&scanner.Conf.ShowVer, "version", "v", false, "显示版本号")
-	rootCmd.Flags().BoolVarP(&scanner.Conf.ShowWeb, "web", "w", false, "显示 Web GUI")
+	//rootCmd.Flags().BoolVarP(&scanner.Conf.ShowWeb, "web", "w", false, "显示 Web GUI")
 	rootCmd.Flags().BoolVarP(&scanner.Conf.ShouldRun, "run", "r", false, "正式开始运行扫描任务")
 
 	// 如果你想修改默认的帮助信息展示，可以在这里微调

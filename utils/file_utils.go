@@ -157,10 +157,12 @@ func DownloadFile(ctx context.Context, url string, filename string, l Logger) er
 		//progressbar.OptionFullWidth(),
 		progressbar.OptionSetRenderBlankState(true),
 	)
+	defer bar.Close()
 
 	// io.Copy 默认不可中断，我们需要手动在循环中检查 Context 状态
 	_, err = copyWithContext(ctx, io.MultiWriter(out, bar), resp.Body)
-
+	bar.Finish()
+	
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			l.WriteLog("\n下载任务已手动停止\n")
