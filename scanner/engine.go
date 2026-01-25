@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+
 	"io"
 	"net"
 	"net/http"
@@ -50,7 +51,7 @@ func ScanIP(ctx context.Context, ip string, domain string, timeout time.Duration
 		ServerName:         sni,
 		InsecureSkipVerify: true,
 	})
-	
+
 	// TLS 握手没有直接传 ctx 的方法, 在握手前检查一次 ctx
 	select {
 	case <-ctx.Done():
@@ -92,8 +93,6 @@ func TestSpeed(parentCtx context.Context, ip string, domain string, timeout time
 	cleanDomain := strings.TrimPrefix(domain, "https://")
 	cleanDomain = strings.TrimPrefix(cleanDomain, "http://")
 	var hostDomain string
-	fmt.Println(domain)
-	fmt.Println(cleanDomain)
 	// 截取第一个 "/" 之前的部分（即获取纯域名/主机名）
 	if idx := strings.Index(cleanDomain, "/"); idx != -1 {
 		hostDomain = cleanDomain[:idx]
@@ -182,7 +181,7 @@ func TestSpeed(parentCtx context.Context, ip string, domain string, timeout time
 	// 记录真正开始下载的时间（排除握手时间）
 	var downloadStart time.Time
 	firstByte := true
-	
+
 	defer bar.Close()
 	// 读取内容并计算字节数
 	for {

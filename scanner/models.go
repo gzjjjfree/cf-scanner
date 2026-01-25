@@ -106,7 +106,10 @@ func IsValidURL(str string) bool {
 	u, err := url.Parse(str)
 	// 解析出错、协议为空、或主机名为空，都视为非法
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		return false
+		u, err = url.Parse("https://" + str)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return false
+		}
 	}
 	return true
 }
