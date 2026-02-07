@@ -109,10 +109,10 @@ func runScannerLogic(appCtx context.Context, conf scanner.ScanConfig) {
 
 	finalResults := scanner.RunScanPool(appCtx, ipGroups, conf.NThreads, conf.SniDomain, int64(conf.MinLatency), actualTaskCount, BridgeLogger)
 
-	BridgeLogger.WriteLog(fmt.Sprintf("\n--- 优选结果 Top %v 最后结果 %v---\n", conf.FinalCount*2, len(finalResults)))
-	for i := 0; i < len(finalResults) && i < conf.FinalCount*2; i++ {
-		BridgeLogger.WriteLog(fmt.Sprintf("排名 %d: [%s], 延迟: %v\n", i+1, finalResults[i].IP, finalResults[i].Latency))
-	}
+	//BridgeLogger.WriteLog(fmt.Sprintf("\n--- 优选结果 Top %v 最后结果 %v---\n", conf.FinalCount*2, len(finalResults)))
+	//for i := 0; i < len(finalResults) && i < conf.FinalCount*2; i++ {
+	//	BridgeLogger.WriteLog(fmt.Sprintf("排名 %d: [%s], 延迟: %v\n", i+1, finalResults[i].IP, finalResults[i].Latency))
+	//}
 
 	scanner.StatusMutex.Lock()
 	if scanner.Status.WaitStop {
@@ -121,9 +121,10 @@ func runScannerLogic(appCtx context.Context, conf scanner.ScanConfig) {
 	}
 	scanner.StatusMutex.Unlock()
 
-	top := min(len(finalResults), max(scanner.Conf.FinalCount*2, 100))
+	//top := min(len(finalResults), max(scanner.Conf.FinalCount*2, 100))
 	// 取前 outCount 名进行深度测速
-	BridgeLogger.WriteLog(fmt.Sprintf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", top, conf.FinalCount))
+	//BridgeLogger.WriteLog(fmt.Sprintf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", top, conf.FinalCount))
+	BridgeLogger.WriteLog(fmt.Sprintf("\n--- 开始进行下载测速，优选 %v 个结果 ---\n", conf.FinalCount))
 
 	// 进行测速
 	finalSorted := scanner.RunDeepTest(appCtx, conf.FinalCount, conf.SniDomain, conf.MinSpeed, finalResults, BridgeLogger)

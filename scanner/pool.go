@@ -119,9 +119,10 @@ func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed floa
 	var finalSorted []FinalResult
 	outResults := 0
 
-	limit := min(len(finalResults), outCount*2)
+	//limit := min(len(finalResults), outCount*2)
 
-	for i := 0; i < limit; i++ {
+	//for i := 0; i < limit; i++ {
+	for i := 0; i < len(finalResults); i++ {
 		select {
 		case <-ctx.Done():
 			l.WriteLog("🛑 深度测速已手动停止")
@@ -156,7 +157,6 @@ func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed floa
 		if outResults == outCount {
 			return finalSorted
 		}
-
 	}
 
 	// 按速度再次排序

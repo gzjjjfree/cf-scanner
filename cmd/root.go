@@ -109,10 +109,10 @@ var rootCmd = &cobra.Command{
 		finalResults := scanner.RunScanPool(ctx, ipGroups, scanner.Conf.NThreads, scanner.Conf.SniDomain, scanner.Conf.MinLatency, actualTaskCount, BridgeLogger)
 
 		// 输出前 outCount 名
-		fmt.Printf("\n--- 优选结果 Top %v 最后结果 %v---\n", scanner.Conf.FinalCount*2, len(finalResults))
-		for i := 0; i < len(finalResults) && i < scanner.Conf.FinalCount*2; i++ {
-			fmt.Printf("排名 %d: [%s], 延迟: %v\n", i+1, finalResults[i].IP, finalResults[i].Latency)
-		}
+		//fmt.Printf("\n--- 优选结果 Top %v 最后结果 %v---\n", scanner.Conf.FinalCount*2, len(finalResults))
+		//for i := 0; i < len(finalResults) && i < scanner.Conf.FinalCount*2; i++ {
+		//	fmt.Printf("排名 %d: [%s], 延迟: %v\n", i+1, finalResults[i].IP, finalResults[i].Latency)
+		//}
 
 		scanner.StatusMutex.Lock()
 		if scanner.Status.WaitStop {
@@ -122,9 +122,10 @@ var rootCmd = &cobra.Command{
 		}
 		scanner.StatusMutex.Unlock()
 
-		top := min(len(finalResults), max(scanner.Conf.FinalCount*2, 100))
+		//top := min(len(finalResults), max(scanner.Conf.FinalCount*2, 100))
 		// 取前 outCount 名进行深度测速
-		fmt.Printf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", top, scanner.Conf.FinalCount)
+		//fmt.Printf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", top, scanner.Conf.FinalCount)
+		fmt.Printf("\n--- 开始进行下载测速，优选 %v 个结果 ---\n", scanner.Conf.FinalCount)
 
 		// 进行测速
 		finalSorted := scanner.RunDeepTest(ctx, scanner.Conf.FinalCount, scanner.Conf.SniDomain, scanner.Conf.MinSpeed, finalResults, BridgeLogger)
