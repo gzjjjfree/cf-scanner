@@ -62,6 +62,9 @@ func (w writerWrapper) Write(p []byte) (n int, err error) {
 }
 
 func ParseIP(ctx context.Context, ipFile string, testCount int, l Logger) ([][]string, int) {
+	// --- 新增：读取黑名单 ---
+	blacklist := readBlacklist("notwork.json")
+
 	// 读取并解析 IP 段文件
 	cidrList, isJSONInput, err := ReadLines(ipFile)
 	if err != nil {
@@ -79,16 +82,32 @@ func ParseIP(ctx context.Context, ipFile string, testCount int, l Logger) ([][]s
 	}
 
 	// 每段分别取样
-	ipGroups := make([][]string, 1)
+	ipGroups := make([][]string, 1)	
+
 	for _, cidr := range cidrList {
 		ips, _ := ParseCIDR(cidr)
+
+		// --- 过滤黑名单中的 IP ---
+		var filteredIps []string
+		for _, ip := range ips {
+			if _, found := blacklist[ip]; !found {
+				filteredIps = append(filteredIps, ip)
+			}
+		}
+
+		// 如果该段过滤后没有剩余 IP，直接跳过
+		if len(filteredIps) == 0 {
+			continue
+		}
+
 		if isJSONInput {
 			// json 文件全部 ip 读入groups[0]
-			ipGroups[0] = append(ipGroups[0], ips...)
+			ipGroups[0] = append(ipGroups[0], filteredIps...)
+			// l.WriteLog(fmt.Sprintf("JSON 输入: IP 段 [%v] 过滤后剩余 %v 个 IP (已剔除黑名单)\n", cidr, len(filteredIps)))
 		} else {
 			// 每个 ip 段分别取样
 			groups := pickSamples(ips, testCount)
-			l.WriteLog(fmt.Sprintf("IP 段 [%v] 随机抽样数为: %v\n", cidr, len(groups)))
+			l.WriteLog(fmt.Sprintf("IP 段 [%v] 随机抽样数为: %v (已剔除黑名单)\n", cidr, len(groups)))
 			// 二维切片 ipGroups 的每个切片都是一个 ip 段取样的结果
 			ipGroups = append(ipGroups, groups)
 		}
@@ -105,6 +124,27 @@ func ParseIP(ctx context.Context, ipFile string, testCount int, l Logger) ([][]s
 	logMsg := fmt.Sprintf("解析完成，总计 %d 个 IP，开始随机抽样扫描...\n", actualTaskCount)
 	l.WriteLog(logMsg)
 	return ipGroups, actualTaskCount
+}
+
+// readBlacklist 从指定的 JSON 文件中读取黑名单 IP，并返回一个包含这些 IP 的 map
+func readBlacklist(filename string) map[string]struct{} {
+	blacklist := make(map[string]struct{})
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return blacklist // 如果文件不存在或读取失败，返回空 map
+	}
+
+	// 定义匹配 JSON 的临时结构体
+	var entries []struct {
+		Address string `json:"address"`
+	}
+
+	if err := json.Unmarshal(data, &entries); err == nil {
+		for _, entry := range entries {
+			blacklist[entry.Address] = struct{}{}
+		}
+	}
+	return blacklist
 }
 
 // readLines 从文件中读取所有行

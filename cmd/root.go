@@ -126,7 +126,7 @@ var rootCmd = &cobra.Command{
 		// 取前 outCount 名进行深度测速
 		//fmt.Printf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", top, scanner.Conf.FinalCount)
 		fmt.Printf("\n--- 开始进行下载测速，优选 %v 个结果 ---\n", scanner.Conf.FinalCount)
-
+		
 		// 进行测速
 		finalSorted := scanner.RunDeepTest(ctx, scanner.Conf.FinalCount, scanner.Conf.SniDomain, scanner.Conf.MinSpeed, finalResults, BridgeLogger)
 
