@@ -134,6 +134,9 @@ func CheckWSConnections(domain string, okPath string, resultPath string) error {
 	// 2. 读取并合并地址
 	ipSet := make(map[string]struct{}) // 用于去重
 
+	dir, _ := os.Getwd()
+	fmt.Printf("当前工作目录: %s\n", dir)
+
 	paths := []string{okPath, resultPath}
 	for _, path := range paths {
 		data, err := os.ReadFile(path)

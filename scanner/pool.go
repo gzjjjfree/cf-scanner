@@ -180,12 +180,12 @@ func checkWSAvailability(ip string, host string) bool {
 	dialer := websocket.Dialer{
 		TLSClientConfig: &tls.Config{ServerName: host},
 		NetDial: func(network, addr string) (net.Conn, error) {
-			return net.DialTimeout(network, ip+":443", 3*time.Second)
+			return net.DialTimeout(network, ip+":443", 5*time.Second)
 		},
 	}
 
 	// 尝试建立连接
-	_, resp, err := dialer.Dial("wss://"+host+"/your-path", nil)
+	_, resp, err := dialer.Dial("wss://"+host+"/v2-vl", nil)
 	if err != nil {
 		if resp != nil && resp.StatusCode == 403 {
 			// 明确捕获 403，说明此 IP 对当前 Host 封锁了 WS

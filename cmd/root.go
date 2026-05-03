@@ -207,7 +207,7 @@ func init() {
 	// 4. 其他
 	rootCmd.Flags().BoolVarP(&scanner.Conf.ShowVer, "version", "v", false, "显示版本号")
 	//rootCmd.Flags().BoolVarP(&scanner.Conf.ShowWeb, "web", "w", false, "显示 Web GUI")
-	rootCmd.Flags().BoolVarP(&scanner.Conf.Wsconnet, "wsconnet", "w", false, "检测 WS 连接可用性")
+	rootCmd.Flags().BoolVarP(&scanner.Conf.Wsconnet, "wsconnet", "w", false, "检测 WS 连接可用性, 使用时记得设置相关参数 -d 你的域名")
 	rootCmd.Flags().BoolVarP(&scanner.Conf.ShouldRun, "run", "r", false, "正式开始运行扫描任务")
 
 	// 如果你想修改默认的帮助信息展示，可以在这里微调
