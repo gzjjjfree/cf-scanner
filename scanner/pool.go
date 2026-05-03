@@ -2,11 +2,14 @@ package scanner
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/schollz/progressbar/v3"
 )
 
@@ -131,6 +134,11 @@ func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed floa
 		}
 		bestIP := finalResults[i].IP
 
+		if checkWSAvailability(bestIP, domain) {
+			l.WriteLog(fmt.Sprintf("⚠️ [%s] WS 连接被封锁，跳过测速\n", bestIP))
+			continue
+		}
+
 		speed, err := TestSpeed(ctx, bestIP, domain, 5*time.Second, l)
 
 		if err != nil {
@@ -165,4 +173,25 @@ func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed floa
 	})
 
 	return finalSorted
+}
+
+// 模拟检测逻辑
+func checkWSAvailability(ip string, host string) bool {
+	dialer := websocket.Dialer{
+		TLSClientConfig: &tls.Config{ServerName: host},
+		NetDial: func(network, addr string) (net.Conn, error) {
+			return net.DialTimeout(network, ip+":443", 3*time.Second)
+		},
+	}
+
+	// 尝试建立连接
+	_, resp, err := dialer.Dial("wss://"+host+"/your-path", nil)
+	if err != nil {
+		if resp != nil && resp.StatusCode == 403 {
+			// 明确捕获 403，说明此 IP 对当前 Host 封锁了 WS
+			return false
+		}
+		return false
+	}
+	return true
 }

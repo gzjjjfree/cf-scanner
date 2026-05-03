@@ -2,7 +2,10 @@ package scanner
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -61,6 +64,7 @@ type ScanConfig struct {
 	ShowWeb    bool    `json:"show_web"`    // 是否启用 web GUI
 	ShouldRun  bool    `json:"should_run"`  // 运行扫描
 	DownloadV5 bool    // 是否下载 v5-result
+	Wsconnet   bool    `json:"wsconnet"` // 检测 WS 连接可用性
 }
 
 // 检查扫描参数，防止不合理设置
@@ -112,4 +116,107 @@ func IsValidURL(str string) bool {
 		}
 	}
 	return true
+}
+
+type IPAddr struct {
+	Address string `json:"address"`
+}
+
+func CheckWSConnections(domain string, okPath string, resultPath string) error {
+	// 1. 设置默认值逻辑
+	if okPath == "" {
+		okPath = "result/result1.json"
+	}
+	if resultPath == "" {
+		resultPath = "result/result.json"
+	}
+
+	// 2. 读取并合并地址
+	ipSet := make(map[string]struct{}) // 用于去重
+
+	paths := []string{okPath, resultPath}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Printf("跳过无法读取的文件: %s\n", path)
+			continue
+		}
+
+		var entries []IPAddr
+		if err := json.Unmarshal(data, &entries); err != nil {
+			fmt.Printf("解析文件 %s 失败: %v\n", path, err)
+			continue
+		}
+
+		for _, entry := range entries {
+			if entry.Address != "" {
+				ipSet[entry.Address] = struct{}{}
+			}
+		}
+	}
+
+	if len(ipSet) == 0 {
+		return fmt.Errorf("没有从指定文件中读取到任何有效地址")
+	}
+
+	fmt.Printf("共加载 %d 个唯一 IP，开始检测域名 [%s] 的 WS 可用性...\n", len(ipSet), domain)
+
+	// 3. 执行检测
+	var invalidIPs []IPAddr
+	var validIPs []IPAddr
+	for ip := range ipSet {
+		if checkWSAvailability(ip, domain) {
+			fmt.Printf("[√] IP %s 可用\n", ip)
+			validIPs = append(validIPs, IPAddr{Address: ip})
+		} else {
+			fmt.Printf("[X] IP %s 不可用 (403 或连接失败)\n", ip)
+			invalidIPs = append(invalidIPs, IPAddr{Address: ip}) // 记录失败者
+		}
+	}
+
+	// 4. (可选) 将结果保存到新文件，防止下次重复检测
+	if len(validIPs) > 0 {
+		outputData, _ := json.MarshalIndent(validIPs, "", "    ")
+		os.WriteFile("ws_verified_results.json", outputData, 0644)
+		fmt.Printf("检测完成，已将 %d 个可用 IP 保存至 ws_verified_results.json\n", len(validIPs))
+	}
+
+	// 4. 将检测失败（不可用）的 IP 追加到 notwork.json
+	if len(invalidIPs) > 0 {
+		blacklistPath := "notwork.json"
+		var currentBlacklist []IPAddr
+
+		// 1. 尝试读取现有的黑名单
+		if data, err := os.ReadFile(blacklistPath); err == nil {
+			json.Unmarshal(data, &currentBlacklist)
+		}
+
+		// 2. 合并新失效的 IP 并去重
+		fullMap := make(map[string]struct{})
+		for _, item := range currentBlacklist {
+			fullMap[item.Address] = struct{}{}
+		}
+		for _, item := range invalidIPs {
+			fullMap[item.Address] = struct{}{}
+		}
+
+		// 3. 转回切片结构
+		var updatedBlacklist []IPAddr
+		for ip := range fullMap {
+			updatedBlacklist = append(updatedBlacklist, IPAddr{Address: ip})
+		}
+
+		// 4. 重新写回文件
+		outputData, _ := json.MarshalIndent(updatedBlacklist, "", "    ")
+		err := os.WriteFile(blacklistPath, outputData, 0644)
+
+		if err == nil {
+			fmt.Printf("已将 %d 个失效 IP 追加至 %s (总计 %d 个黑名单)\n",
+				len(invalidIPs), blacklistPath, len(updatedBlacklist))
+		} else {
+			fmt.Printf("保存黑名单失败: %v\n", err)
+		}
+	}
+
+	return nil
 }

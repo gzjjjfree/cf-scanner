@@ -46,6 +46,22 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		// 检测 WS 连接可用性
+		if scanner.Conf.Wsconnet {
+			fmt.Printf("正在检测 WS 连接可用性...\n")
+
+			// 传入域名和两个文件路径
+			// 假设域名来自于你的配置 scanner.Conf.SniDomain
+			err := scanner.CheckWSConnections(scanner.Conf.SniDomain, "result/result1.json", "result/result.json")
+
+			if err != nil {
+				fmt.Printf("检测过程中发生错误: %v\n", err)
+			} else {
+				fmt.Printf("WS 连接检测完成！\n")
+			}
+			return
+		}
+
 		scanner.StatusMutex.Lock()
 		var ctx context.Context
 		ctx, scanner.CancelScan = context.WithCancel(context.Background())
@@ -126,7 +142,7 @@ var rootCmd = &cobra.Command{
 		// 取前 outCount 名进行深度测速
 		//fmt.Printf("\n--- 开始对 Top %v 进行下载测速，优选 %v 个结果 ---\n", top, scanner.Conf.FinalCount)
 		fmt.Printf("\n--- 开始进行下载测速，优选 %v 个结果 ---\n", scanner.Conf.FinalCount)
-		
+
 		// 进行测速
 		finalSorted := scanner.RunDeepTest(ctx, scanner.Conf.FinalCount, scanner.Conf.SniDomain, scanner.Conf.MinSpeed, finalResults, BridgeLogger)
 
@@ -191,6 +207,7 @@ func init() {
 	// 4. 其他
 	rootCmd.Flags().BoolVarP(&scanner.Conf.ShowVer, "version", "v", false, "显示版本号")
 	//rootCmd.Flags().BoolVarP(&scanner.Conf.ShowWeb, "web", "w", false, "显示 Web GUI")
+	rootCmd.Flags().BoolVarP(&scanner.Conf.Wsconnet, "wsconnet", "w", false, "检测 WS 连接可用性")
 	rootCmd.Flags().BoolVarP(&scanner.Conf.ShouldRun, "run", "r", false, "正式开始运行扫描任务")
 
 	// 如果你想修改默认的帮助信息展示，可以在这里微调
