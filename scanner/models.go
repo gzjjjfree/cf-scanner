@@ -64,7 +64,7 @@ type ScanConfig struct {
 	ShowWeb    bool    `json:"show_web"`    // 是否启用 web GUI
 	ShouldRun  bool    `json:"should_run"`  // 运行扫描
 	DownloadV5 bool    // 是否下载 v5-result
-	Wsconnet   bool    `json:"wsconnet"` // 检测 WS 连接可用性
+	Wsconnet   string  `json:"wsconnet"` // WS 路径
 }
 
 // 检查扫描参数，防止不合理设置
@@ -122,7 +122,7 @@ type IPAddr struct {
 	Address string `json:"address"`
 }
 
-func CheckWSConnections(domain string, okPath string, resultPath string) error {
+func (c *ScanConfig) CheckWSConnections(domain string, okPath string, resultPath string) error {
 	// 1. 设置默认值逻辑
 	if okPath == "" {
 		okPath = "result/result1.json"
@@ -168,7 +168,7 @@ func CheckWSConnections(domain string, okPath string, resultPath string) error {
 	var invalidIPs []IPAddr
 	var validIPs []IPAddr
 	for ip := range ipSet {
-		if checkWSAvailability(ip, domain) {
+		if c.checkWSAvailability(ip, domain) {
 			fmt.Printf("[√] IP %s 可用\n", ip)
 			validIPs = append(validIPs, IPAddr{Address: ip})
 		} else {
@@ -184,6 +184,12 @@ func CheckWSConnections(domain string, okPath string, resultPath string) error {
 		fmt.Printf("检测完成，已将 %d 个可用 IP 保存至 ws_verified_results.json\n", len(validIPs))
 	}
 
+	c.SaveNotWork(invalidIPs)
+
+	return nil
+}
+
+func (c *ScanConfig) SaveNotWork(invalidIPs []IPAddr) {
 	// 4. 将检测失败（不可用）的 IP 追加到 notwork.json
 	if len(invalidIPs) > 0 {
 		blacklistPath := "notwork.json"
@@ -220,6 +226,4 @@ func CheckWSConnections(domain string, okPath string, resultPath string) error {
 			fmt.Printf("保存黑名单失败: %v\n", err)
 		}
 	}
-
-	return nil
 }

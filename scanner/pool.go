@@ -5,7 +5,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/url"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -120,6 +122,7 @@ func RunScanPool(ctx context.Context, ipGroups [][]string, workerCount int, doma
 // 启动测速
 func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed float64, finalResults []FinalResult, l Logger) []FinalResult {
 	var finalSorted []FinalResult
+	var invalidIPs []IPAddr
 	outResults := 0
 
 	//limit := min(len(finalResults), outCount*2)
@@ -134,9 +137,12 @@ func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed floa
 		}
 		bestIP := finalResults[i].IP
 
-		if checkWSAvailability(bestIP, domain) {
-			l.WriteLog(fmt.Sprintf("⚠️ [%s] WS 连接被封锁，跳过测速\n", bestIP))
-			continue
+		if Conf.Wsconnet != "" {
+			if !Conf.checkWSAvailability(bestIP, domain) {
+				l.WriteLog(fmt.Sprintf("⚠️ [%s] WS 连接被封锁，跳过测速\n", bestIP))
+				invalidIPs = append(invalidIPs, IPAddr{Address: bestIP}) // 记录失败者
+				continue
+			}
 		}
 
 		speed, err := TestSpeed(ctx, bestIP, domain, 5*time.Second, l)
@@ -167,6 +173,8 @@ func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed floa
 		}
 	}
 
+	Conf.SaveNotWork(invalidIPs)
+
 	// 按速度再次排序
 	sort.Slice(finalSorted, func(i, j int) bool {
 		return finalSorted[i].DownloadMBs > finalSorted[j].DownloadMBs
@@ -176,16 +184,30 @@ func RunDeepTest(ctx context.Context, outCount int, domain string, minSpeed floa
 }
 
 // 模拟检测逻辑
-func checkWSAvailability(ip string, host string) bool {
+func (c *ScanConfig) checkWSAvailability(ip string, host string) bool {
+	// 1. 确保 rawHost 带有协议前缀，否则 url.Parse 无法正确解析
+	parsedUrl := host
+	if !strings.HasPrefix(host, "https://") && !strings.HasPrefix(host, "http://") {
+		parsedUrl = "https://" + host
+	}
+
+	u, err := url.Parse(parsedUrl)
+	if err != nil {
+		fmt.Printf("解析 Host 失败: %v\n", err)
+		return false
+	}
+
+	// fmt.Println("host: " + u.Host)
 	dialer := websocket.Dialer{
-		TLSClientConfig: &tls.Config{ServerName: host},
+		TLSClientConfig: &tls.Config{ServerName: u.Host},
 		NetDial: func(network, addr string) (net.Conn, error) {
 			return net.DialTimeout(network, ip+":443", 5*time.Second)
 		},
 	}
 
 	// 尝试建立连接
-	_, resp, err := dialer.Dial("wss://"+host+"/v2-vl", nil)
+	// fmt.Println("ws: " + c.Wsconnet)
+	_, resp, err := dialer.Dial("wss://"+u.Host+c.Wsconnet, nil)
 	if err != nil {
 		if resp != nil && resp.StatusCode == 403 {
 			// 明确捕获 403，说明此 IP 对当前 Host 封锁了 WS

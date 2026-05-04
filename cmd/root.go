@@ -46,22 +46,6 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		// 检测 WS 连接可用性
-		if scanner.Conf.Wsconnet {
-			fmt.Printf("正在检测 WS 连接可用性...\n")
-
-			// 传入域名和两个文件路径
-			// 假设域名来自于你的配置 scanner.Conf.SniDomain
-			err := scanner.CheckWSConnections(scanner.Conf.SniDomain, "result/result1.json", "result/result.json")
-
-			if err != nil {
-				fmt.Printf("检测过程中发生错误: %v\n", err)
-			} else {
-				fmt.Printf("WS 连接检测完成！\n")
-			}
-			return
-		}
-
 		scanner.StatusMutex.Lock()
 		var ctx context.Context
 		ctx, scanner.CancelScan = context.WithCancel(context.Background())
@@ -70,6 +54,15 @@ var rootCmd = &cobra.Command{
 		keyDone := make(chan struct{})
 		// 启动一个后台协程专门盯着键盘
 		go scanner.ListenForStopKey(ctx, scanner.CancelScan, keyDone)
+
+		// 【关键修复】：利用 defer 确保只要 Run 函数返回，就自动触发取消信号
+		defer func() {
+			if scanner.CancelScan != nil {
+				scanner.CancelScan() // 通知后台协程退出
+			}
+			// 可选：如果 ListenForStopKey 在退出前需要恢复终端状态，可以在这里等它执行完
+			<-keyDone
+		}()
 
 		// 优先处理版本号逻辑
 		if scanner.Conf.DownloadV5 {
@@ -94,6 +87,23 @@ var rootCmd = &cobra.Command{
 		}
 
 		if !scanner.Conf.ShouldRun {
+			// 检测 WS 连接可用性
+			if scanner.Conf.Wsconnet != "" {
+				fmt.Printf("正在检测 WS 连接可用性...\n")
+
+				// 传入域名和两个文件路径
+				// 假设域名来自于你的配置 scanner.Conf.SniDomain
+				err := scanner.Conf.CheckWSConnections(scanner.Conf.SniDomain, "result/result1.json", "result/result.json")
+
+				if err != nil {
+					fmt.Printf("检测过程中发生错误: %v\n", err)
+				} else {
+					fmt.Printf("WS 连接检测完成！\n")
+				}
+
+				return
+			}
+
 			// 如果用户没传 --run，则打印帮助并退出
 			cmd.Help()
 			return
@@ -207,7 +217,7 @@ func init() {
 	// 4. 其他
 	rootCmd.Flags().BoolVarP(&scanner.Conf.ShowVer, "version", "v", false, "显示版本号")
 	//rootCmd.Flags().BoolVarP(&scanner.Conf.ShowWeb, "web", "w", false, "显示 Web GUI")
-	rootCmd.Flags().BoolVarP(&scanner.Conf.Wsconnet, "wsconnet", "w", false, "检测 WS 连接可用性, 使用时记得设置相关参数 -d 你的域名")
+	rootCmd.Flags().StringVarP(&scanner.Conf.Wsconnet, "wsconnet", "w", "", "WS 路径, 如： /ws")
 	rootCmd.Flags().BoolVarP(&scanner.Conf.ShouldRun, "run", "r", false, "正式开始运行扫描任务")
 
 	// 如果你想修改默认的帮助信息展示，可以在这里微调
